@@ -518,40 +518,40 @@
   };
 
   const FIELD_ALIASES = {
-    region: ['region', 'Region', 'Region Name', 'region_name'],
-    woreda: ['woreda', 'Woreda', 'district'],
-    kebele: ['kebele', 'Kebele'],
-    subKebele: ['Sub-kebele', 'sub_kebele', 'sub-kebele', 'Sub kebele'],
-    component: ['Project Component', 'project_component', 'component', 'Component'],
-    subcomponent: ['Project sub-component', 'project_sub_component', 'subcomponent', 'Sub-component'],
-    subprojectType: ['Sub project or Investment Type', 'sub_project_or_investment_type', 'investment_type'],
+    region: ['group_0/region', 'region', 'Region', 'Region Name', 'region_name'],
+    woreda: ['group_0/woreda', 'woreda', 'Woreda', 'district'],
+    kebele: ['group_0/kebele', 'kebele', 'Kebele'],
+    subKebele: ['group_0/Sub_kebele', 'Sub-kebele', 'sub_kebele', 'sub-kebele', 'Sub kebele'],
+    component: ['group_0/Q1', 'Project Component', 'project_component', 'component', 'Component'],
+    subcomponent: ['group_0/Q1a', 'Project sub-component', 'project_sub_component', 'subcomponent', 'Sub-component'],
+    subprojectType: ['group_0/Q1b', 'Sub project or Investment Type', 'sub_project_or_investment_type', 'investment_type'],
     subprojectTypeOther: ['If other, please specify the sub-project or investment type', 'subproject_type_other'],
-    subprojectName: ['Local name of the sub-project', 'local_name_of_the_sub_project', 'subproject_name'],
-    subprojectDescription: ['Sub-project description', 'sub_project_description', 'description'],
-    subprojectCategory: ['Sub-project category', 'sub_project_category', 'category'],
+    subprojectName: ['group_1/sbp_name', 'Local name of the sub-project', 'local_name_of_the_sub_project', 'subproject_name'],
+    subprojectDescription: ['group_1/sbp_descr', 'Sub-project description', 'sub_project_description', 'description'],
+    subprojectCategory: ['group_1/sbp_category', 'Sub-project category', 'sub_project_category', 'category'],
     workType: ['Type of sub-project works', 'type_of_sub_project_works', 'work_type', 'worktype'],
     workTypeOther: ['Please, specify the type of sub-project work', 'work_type_other'],
-    status: ['Status of the sub-project/investment implementation', 'status', 'implementation_status'],
+    status: ['group_3/impl_status', 'Status of the sub-project/investment implementation', 'status', 'implementation_status'],
     statusOther: ['Please specify the status of implementation', 'status_other'],
-    functionalityStatus: ['If completed, what is its functionality status?', 'functionality_status'],
-    beneficiaries: ['beneficiaries', 'Total beneficiaries', 'total_beneficiaries', 'Number of beneficiaries'],
-    male: ['male', 'Male beneficiaries', 'number_of_male_beneficiaries'],
-    female: ['female', 'Female beneficiaries', 'number_of_female_beneficiaries'],
-    host: ['host', 'Host beneficiaries', 'host_beneficiaries'],
-    refugee: ['refugee', 'Refugee beneficiaries', 'refugee_beneficiaries'],
+    functionalityStatus: ['group_3/sbp_functional', 'If completed, what is its functionality status?', 'functionality_status'],
+    beneficiaries: ['group_4/group_hostcomm/host_total', 'beneficiaries', 'Total beneficiaries', 'total_beneficiaries', 'Number of beneficiaries'],
+    male: ['group_4/group_hostcomm/host_male', 'group_12/gain_male_hc', 'group_13/gain_male_ref', 'male', 'Male beneficiaries', 'number_of_male_beneficiaries'],
+    female: ['group_4/group_hostcomm/host_female', 'group_12/gain_female_hc', 'group_13/gain_female_ref', 'female', 'Female beneficiaries', 'number_of_female_beneficiaries'],
+    host: ['group_4/group_hostcomm/host_total', 'host', 'Host beneficiaries', 'host_beneficiaries'],
+    refugee: ['group_13/tc_002', 'refugee', 'Refugee beneficiaries', 'refugee_beneficiaries'],
     hostRefugee: ['Host or Refugee', 'host_or_refugee', 'beneficiary_type'],
-    gps: ['Record GPS coordinate (Enable "Location Services" on your tablet/phone)', 'Record GPS coordinate (Enable Location Services on your tablet/phone)', 'gps', '_geolocation'],
+    gps: ['gps_point', 'Record GPS coordinate (Enable "Location Services" on your tablet/phone)', 'Record GPS coordinate (Enable Location Services on your tablet/phone)', 'gps', '_geolocation'],
     latitude: ['_Record GPS coordinate (Enable "Location Services" on your tablet/phone)_latitude', '_Record GPS coordinate (Enable Location Services on your tablet/phone)_latitude', 'latitude', '_geolocation_latitude'],
     longitude: ['_Record GPS coordinate (Enable "Location Services" on your tablet/phone)_longitude', '_Record GPS coordinate (Enable Location Services on your tablet/phone)_longitude', 'longitude', '_geolocation_longitude'],
     altitude: ['_Record GPS coordinate (Enable "Location Services" on your tablet/phone)_altitude', 'altitude'],
     precision: ['_Record GPS coordinate (Enable "Location Services" on your tablet/phone)_precision', 'precision'],
-    photoOne: ['Photo One', 'photo_one'],
+    photoOne: ['photo1', 'Photo One', 'photo_one'],
     photoOneUrl: ['Photo One_URL', 'Photo One_url', 'photo_one_url'],
-    photoTwo: ['Photo Two', 'photo_two'],
+    photoTwo: ['photo2', 'Photo Two', 'photo_two'],
     photoTwoUrl: ['Photo Two_URL', 'Photo Two_url', 'photo_two_url'],
     photoThree: ['Photo Three (optional)', 'photo_three'],
     photoThreeUrl: ['Photo Three (optional)_URL', 'Photo Three_URL', 'photo_three_url'],
-    videoUrl: ['Record a short video when interviewing a beneficiary or member of beneficiaries. The optional video should not be more than one-minute long._URL', 'video_url', 'Video_URL'],
+    videoUrl: ['Capture_Video_optional', 'Record a short video when interviewing a beneficiary or member of beneficiaries. The optional video should not be more than one-minute long._URL', 'video_url', 'Video_URL'],
     id: ['_id', 'id'],
     uuid: ['_uuid', 'uuid'],
     submitted: ['_submission_time', 'submission_time', 'submitted'],
@@ -590,6 +590,10 @@
   const pct = (num, den) => den ? `${Math.round((num / den) * 100)}%` : '0%';
   const clean = value => value == null ? '' : String(value).trim();
   const lower = value => clean(value).toLowerCase();
+  const titleCase = value => clean(value)
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\b\w/g, ch => ch.toUpperCase());
   const number = value => {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
     const parsed = Number(clean(value).replace(/,/g, ''));
@@ -631,6 +635,42 @@
       if (Object.prototype.hasOwnProperty.call(record, name) && record[name] !== null && record[name] !== '') return record[name];
     }
     return '';
+  }
+
+  function normalizeChoice(value) {
+    const raw = clean(value);
+    const choices = {
+      comp_one: 'Component 1',
+      comp_two: 'Component 2',
+      comp_three: 'Component 3',
+      comp_four: 'Component 4',
+      sb1a: 'Sub-component 1A',
+      sb1b: 'Sub-component 1B',
+      sb2a: 'Sub-component 2A',
+      sb2b: 'Sub-component 2B',
+      sb3a: 'Sub-component 3A',
+      sb3b: 'Sub-component 3B',
+      sb4a: 'Sub-component 4A',
+      sb4b: 'Sub-component 4B',
+      cig: 'Common Interest Group',
+      russaco: 'RUSACCO'
+    };
+    return choices[raw] || titleCase(raw);
+  }
+
+  function getAttachmentUrl(record, fileValue, mimePrefix) {
+    const fileName = clean(fileValue);
+    const attachments = Array.isArray(record._attachments) ? record._attachments : [];
+    const attachment = attachments.find(item => {
+      const type = clean(item.mimetype);
+      if (mimePrefix && !type.startsWith(mimePrefix)) return false;
+      if (!fileName) return false;
+      const filename = clean(item.filename);
+      const basename = clean(item.media_file_basename);
+      return filename.endsWith(fileName) || basename === fileName || filename.includes(`/${fileName}`);
+    });
+    if (!attachment) return '';
+    return clean(attachment.download_large_url) || clean(attachment.download_url);
   }
 
   function normalizeRegion(value) {
@@ -704,7 +744,15 @@
 
   function normalizeRecord(raw, idx) {
     const gps = getGps(raw);
-    const photos = [getField(raw, 'photoOneUrl'), getField(raw, 'photoTwoUrl'), getField(raw, 'photoThreeUrl')].map(clean).filter(Boolean);
+    const photoOneFile = clean(getField(raw, 'photoOne'));
+    const photoTwoFile = clean(getField(raw, 'photoTwo'));
+    const photoThreeFile = clean(getField(raw, 'photoThree'));
+    const photoOneUrl = clean(getField(raw, 'photoOneUrl')) || getAttachmentUrl(raw, photoOneFile, 'image/');
+    const photoTwoUrl = clean(getField(raw, 'photoTwoUrl')) || getAttachmentUrl(raw, photoTwoFile, 'image/');
+    const photoThreeUrl = clean(getField(raw, 'photoThreeUrl')) || getAttachmentUrl(raw, photoThreeFile, 'image/');
+    const videoFile = clean(getField(raw, 'videoUrl'));
+    const videoUrl = videoFile.startsWith('http') ? videoFile : getAttachmentUrl(raw, videoFile, 'video/');
+    const photos = [photoOneUrl, photoTwoUrl, photoThreeUrl].map(clean).filter(Boolean);
     const regionRaw = clean(getField(raw, 'region'));
     const male = number(getField(raw, 'male'));
     const female = number(getField(raw, 'female'));
@@ -723,18 +771,18 @@
       woreda: clean(getField(raw, 'woreda')),
       kebele: clean(getField(raw, 'kebele')),
       subKebele: clean(getField(raw, 'subKebele')),
-      component: clean(getField(raw, 'component')),
-      subcomponent: clean(getField(raw, 'subcomponent')),
-      subprojectType: clean(getField(raw, 'subprojectType')),
+      component: normalizeChoice(getField(raw, 'component')),
+      subcomponent: normalizeChoice(getField(raw, 'subcomponent')),
+      subprojectType: normalizeChoice(getField(raw, 'subprojectType')),
       subprojectTypeOther: clean(getField(raw, 'subprojectTypeOther')),
       subprojectName: clean(getField(raw, 'subprojectName')),
       subprojectDescription: clean(getField(raw, 'subprojectDescription')),
-      subprojectCategory: clean(getField(raw, 'subprojectCategory')),
-      workType: clean(getField(raw, 'workType')),
+      subprojectCategory: normalizeChoice(getField(raw, 'subprojectCategory')),
+      workType: normalizeChoice(getField(raw, 'workType')),
       workTypeOther: clean(getField(raw, 'workTypeOther')),
       status: normalizeStatus(getField(raw, 'status')),
       statusOther: clean(getField(raw, 'statusOther')),
-      functionalityStatus: clean(getField(raw, 'functionalityStatus')),
+      functionalityStatus: normalizeChoice(getField(raw, 'functionalityStatus')),
       beneficiaries: number(getField(raw, 'beneficiaries')) || fallbackBeneficiaries,
       male,
       female,
@@ -746,13 +794,13 @@
       longitude: gps.longitude,
       altitude: number(getField(raw, 'altitude')),
       precision: number(getField(raw, 'precision')),
-      photoOne: clean(getField(raw, 'photoOne')),
-      photoOneUrl: clean(getField(raw, 'photoOneUrl')),
-      photoTwo: clean(getField(raw, 'photoTwo')),
-      photoTwoUrl: clean(getField(raw, 'photoTwoUrl')),
-      photoThree: clean(getField(raw, 'photoThree')),
-      photoThreeUrl: clean(getField(raw, 'photoThreeUrl')),
-      videoUrl: clean(getField(raw, 'videoUrl')),
+      photoOne: photoOneFile,
+      photoOneUrl,
+      photoTwo: photoTwoFile,
+      photoTwoUrl,
+      photoThree: photoThreeFile,
+      photoThreeUrl,
+      videoUrl,
       photoCount: photos.length,
       hasGps: Boolean(gps.latitude && gps.longitude),
       hasPhotos: photos.length > 0,
