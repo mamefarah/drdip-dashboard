@@ -1,9 +1,0 @@
-{
-  "name": "drdip-dashboard",
-  "version": "1.0.0",
-  "description": "DRDIP-II Field Monitoring Dashboard — Somali Regional State Bureau of Agriculture",
-  "engines": {
-    "node": "20.x"
-  },
-  "license": "UNLICENSED"
-}
