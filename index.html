@@ -1,0 +1,2187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DRDIP-II Field Monitoring Dashboard — Somali Region</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+  <style>
+    /* ═══════════════════════════════════════════
+       DESIGN TOKENS
+    ═══════════════════════════════════════════ */
+    :root {
+      --green:       #0a7c3a;
+      --green-light: #e8f5e9;
+      --navy:        #0f1729;
+      --amber:       #f59e0b;
+      --red:         #ef4444;
+      --blue:        #3b82f6;
+      --purple:      #8b5cf6;
+      --pink:        #ec4899;
+      --cyan:        #06b6d4;
+      --grey:        #9ca3af;
+      --bg:          #f6f7f9;
+      --white:       #ffffff;
+      --text:        #1f2937;
+      --text-light:  #6b7280;
+      --border:      #e5e7eb;
+      --radius:      12px;
+      --font:        'Manrope', sans-serif;
+      --mono:        'IBM Plex Mono', monospace;
+      --shadow:      0 1px 3px rgba(0,0,0,.08), 0 2px 8px rgba(0,0,0,.04);
+      --shadow-md:   0 4px 16px rgba(0,0,0,.10);
+    }
+
+    /* ═══════════════════════════════════════════
+       RESET & BASE
+    ═══════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    button { cursor: pointer; font-family: var(--font); }
+    select, input { font-family: var(--font); }
+    a { color: var(--green); }
+
+    /* ═══════════════════════════════════════════
+       LOADING OVERLAY
+    ═══════════════════════════════════════════ */
+    #loading-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(15,23,41,.75);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 16px; color: var(--white);
+    }
+    #loading-overlay.hidden { display: none; }
+    .spinner {
+      width: 44px; height: 44px;
+      border: 4px solid rgba(255,255,255,.2);
+      border-top-color: var(--white);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    #loading-text { font-size: 15px; font-weight: 500; opacity: .9; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ═══════════════════════════════════════════
+       ALERT BANNER
+    ═══════════════════════════════════════════ */
+    #alert-banner {
+      position: fixed; top: 0; left: 0; right: 0;
+      z-index: 5000;
+    }
+    .alert {
+      padding: 12px 20px;
+      display: flex; align-items: center; gap: 10px;
+      font-size: 13px; font-weight: 500;
+    }
+    .alert-error   { background: #fee2e2; color: #991b1b; }
+    .alert-success { background: #dcfce7; color: #166534; }
+    .alert-info    { background: #dbeafe; color: #1e40af; }
+    .alert-close {
+      margin-left: auto; background: none; border: none;
+      font-size: 16px; line-height: 1; opacity: .6;
+      color: inherit;
+    }
+    .alert-close:hover { opacity: 1; }
+
+    /* ═══════════════════════════════════════════
+       TOAST
+    ═══════════════════════════════════════════ */
+    #toast-container {
+      position: fixed; bottom: 24px; right: 24px;
+      z-index: 9000; display: flex; flex-direction: column; gap: 8px;
+    }
+    .toast {
+      padding: 10px 16px; border-radius: 8px;
+      font-size: 13px; font-weight: 500;
+      box-shadow: var(--shadow-md);
+      animation: fadeInUp .25s ease;
+      max-width: 320px;
+    }
+    .toast-success { background: #166534; color: #fff; }
+    .toast-error   { background: #991b1b; color: #fff; }
+    .toast-info    { background: var(--navy); color: #fff; }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ═══════════════════════════════════════════
+       SETTINGS MODAL
+    ═══════════════════════════════════════════ */
+    #settings-modal {
+      position: fixed; inset: 0; z-index: 8000;
+      background: rgba(15,23,41,.65);
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    #settings-modal.hidden { display: none; }
+    .modal-box {
+      background: var(--white);
+      border-radius: var(--radius);
+      width: 100%; max-width: 480px;
+      padding: 28px;
+      box-shadow: var(--shadow-md);
+    }
+    .modal-title {
+      font-size: 18px; font-weight: 700;
+      color: var(--navy); margin-bottom: 4px;
+    }
+    .modal-subtitle { font-size: 13px; color: var(--text-light); margin-bottom: 24px; }
+    .form-group { margin-bottom: 16px; }
+    .form-label {
+      display: block; font-size: 12px; font-weight: 600;
+      color: var(--text-light); text-transform: uppercase;
+      letter-spacing: .04em; margin-bottom: 6px;
+    }
+    .form-input {
+      width: 100%; padding: 10px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px; font-size: 14px;
+      transition: border-color .15s;
+      outline: none;
+    }
+    .form-input:focus { border-color: var(--green); }
+    .form-hint { font-size: 11px; color: var(--text-light); margin-top: 4px; }
+    .modal-actions {
+      display: flex; gap: 10px; justify-content: flex-end;
+      margin-top: 24px;
+    }
+    .btn {
+      padding: 9px 18px; border-radius: 8px;
+      font-size: 14px; font-weight: 600;
+      border: none; transition: opacity .15s, background .15s;
+    }
+    .btn:hover { opacity: .88; }
+    .btn-ghost {
+      background: transparent; color: var(--text-light);
+      border: 1.5px solid var(--border);
+    }
+    .btn-primary { background: var(--green); color: var(--white); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn-icon {
+      background: none; border: none;
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 6px; border-radius: 6px;
+      color: var(--text-light);
+      transition: background .15s, color .15s;
+    }
+    .btn-icon:hover { background: var(--border); color: var(--text); }
+
+    /* ═══════════════════════════════════════════
+       HEADER
+    ═══════════════════════════════════════════ */
+    #main-header {
+      position: sticky; top: 0; z-index: 400;
+      background: var(--navy);
+      padding: 0 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    }
+    .header-inner {
+      max-width: 1400px; margin: 0 auto;
+      display: flex; align-items: center;
+      gap: 16px; height: 64px;
+      flex-wrap: wrap;
+    }
+    .header-brand { display: flex; align-items: center; gap: 10px; }
+    .header-logo {
+      width: 36px; height: 36px;
+      background: var(--green);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .header-logo svg { width: 22px; height: 22px; fill: #fff; }
+    .header-titles { line-height: 1.2; }
+    .header-title {
+      font-size: 15px; font-weight: 700;
+      color: var(--white); white-space: nowrap;
+    }
+    .header-subtitle {
+      font-size: 11px; color: rgba(255,255,255,.55);
+      white-space: nowrap;
+    }
+    .header-spacer { flex: 1; }
+    .header-stats {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 12px;
+    }
+    .stat-pill {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 20px;
+      padding: 4px 10px;
+      color: rgba(255,255,255,.8);
+      white-space: nowrap;
+    }
+    .stat-pill strong { color: #fff; font-variant-numeric: tabular-nums; }
+    .conn-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      display: inline-block; margin-right: 4px;
+    }
+    .conn-dot.online  { background: #10b981; box-shadow: 0 0 6px #10b981; }
+    .conn-dot.offline { background: var(--grey); }
+    .conn-dot.loading { background: var(--amber); animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .header-actions { display: flex; gap: 6px; }
+    .header-btn {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      color: rgba(255,255,255,.85);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 12px; font-weight: 600;
+      display: flex; align-items: center; gap: 5px;
+      transition: background .15s;
+    }
+    .header-btn:hover { background: rgba(255,255,255,.16); }
+    .header-btn svg { width: 14px; height: 14px; }
+
+    /* ═══════════════════════════════════════════
+       MAIN CONTENT
+    ═══════════════════════════════════════════ */
+    #app-content {
+      max-width: 1400px; margin: 0 auto;
+      padding: 20px 24px 40px;
+    }
+
+    /* ═══════════════════════════════════════════
+       KPI CARDS
+    ═══════════════════════════════════════════ */
+    #kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .kpi-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+    .kpi-label {
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .05em;
+      color: var(--text-light); margin-bottom: 6px;
+    }
+    .kpi-value {
+      font-size: 26px; font-weight: 700;
+      font-family: var(--mono);
+      color: var(--navy); line-height: 1;
+    }
+    .kpi-sub {
+      font-size: 11px; color: var(--text-light);
+      margin-top: 4px; font-family: var(--mono);
+    }
+    .kpi-icon {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 8px;
+    }
+    .kpi-icon svg { width: 18px; height: 18px; }
+
+    /* ═══════════════════════════════════════════
+       FILTER CARD
+    ═══════════════════════════════════════════ */
+    #filter-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .filter-row {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr) auto;
+      gap: 10px; align-items: end;
+    }
+    .filter-group { display: flex; flex-direction: column; gap: 4px; }
+    .filter-label {
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .04em;
+      color: var(--text-light);
+    }
+    .filter-select, .filter-input {
+      padding: 8px 10px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px; color: var(--text);
+      background: var(--white);
+      outline: none;
+      transition: border-color .15s;
+    }
+    .filter-select:focus, .filter-input:focus { border-color: var(--green); }
+    .filter-search-wrap { position: relative; }
+    .filter-search-wrap .filter-input { padding-left: 30px; width: 100%; }
+    .filter-search-icon {
+      position: absolute; left: 9px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--grey); pointer-events: none;
+    }
+    .btn-clear {
+      background: var(--bg); border: 1.5px solid var(--border);
+      color: var(--text-light); border-radius: 8px;
+      padding: 8px 14px; font-size: 13px; font-weight: 600;
+      white-space: nowrap;
+    }
+    .btn-clear:hover { background: var(--border); }
+    .filter-summary {
+      margin-top: 8px;
+      font-size: 12px; color: var(--text-light);
+    }
+    .filter-summary strong { color: var(--text); }
+
+    /* ═══════════════════════════════════════════
+       TAB BAR
+    ═══════════════════════════════════════════ */
+    #tab-bar {
+      display: flex; gap: 2px;
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 4px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      margin-bottom: 16px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    #tab-bar::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      flex: 1; min-width: 100px;
+      padding: 9px 16px;
+      border-radius: 8px;
+      border: none; background: none;
+      font-size: 13px; font-weight: 600;
+      color: var(--text-light);
+      white-space: nowrap;
+      transition: background .15s, color .15s;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .tab-btn:hover { background: var(--bg); color: var(--text); }
+    .tab-btn.active { background: var(--green); color: var(--white); }
+    .tab-btn svg { width: 14px; height: 14px; }
+
+    /* ═══════════════════════════════════════════
+       TAB PANELS
+    ═══════════════════════════════════════════ */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ═══════════════════════════════════════════
+       CHART CARDS
+    ═══════════════════════════════════════════ */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      padding: 20px;
+    }
+    .card-title {
+      font-size: 13px; font-weight: 700;
+      color: var(--navy); margin-bottom: 16px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    .chart-full { grid-column: 1 / -1; }
+    .chart-wrap { position: relative; }
+    .chart-empty {
+      display: flex; align-items: center; justify-content: center;
+      height: 200px; color: var(--text-light);
+      font-size: 13px;
+    }
+
+    /* ═══════════════════════════════════════════
+       MAP TAB
+    ═══════════════════════════════════════════ */
+    #map-container {
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+    #map { height: 600px; }
+    .map-legend {
+      background: var(--white);
+      border-radius: 8px;
+      padding: 10px 14px;
+      box-shadow: var(--shadow-md);
+      font-size: 12px;
+    }
+    .map-legend-item {
+      display: flex; align-items: center; gap: 6px;
+      margin-bottom: 4px;
+    }
+    .map-legend-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+    }
+
+    /* ═══════════════════════════════════════════
+       PHOTOS TAB
+    ═══════════════════════════════════════════ */
+    .photos-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    .photo-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .photo-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    .photo-img-wrap {
+      width: 100%; padding-top: 65%;
+      position: relative; overflow: hidden;
+      background: var(--bg);
+    }
+    .photo-img-wrap img {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%; object-fit: cover;
+      transition: opacity .2s;
+    }
+    .photo-img-wrap .photo-placeholder {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--grey); font-size: 32px;
+    }
+    .photo-info { padding: 10px 12px; }
+    .photo-name { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .photo-meta { font-size: 11px; color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .photo-badge {
+      display: inline-block; margin-top: 4px;
+      padding: 2px 6px; border-radius: 4px;
+      font-size: 10px; font-weight: 600;
+      background: var(--green-light); color: var(--green);
+    }
+    .photos-load-more {
+      text-align: center; margin-top: 20px;
+    }
+
+    /* ═══════════════════════════════════════════
+       LIGHTBOX
+    ═══════════════════════════════════════════ */
+    #lightbox {
+      position: fixed; inset: 0; z-index: 9500;
+      background: rgba(0,0,0,.92);
+      display: flex; align-items: center; justify-content: center;
+    }
+    #lightbox.hidden { display: none; }
+    .lb-img-wrap {
+      max-width: 90vw; max-height: 85vh;
+      position: relative;
+    }
+    .lb-img-wrap img {
+      max-width: 100%; max-height: 85vh;
+      border-radius: 8px;
+      display: block;
+    }
+    .lb-btn {
+      position: absolute; top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,.15);
+      border: none; color: #fff;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; transition: background .15s;
+    }
+    .lb-btn:hover { background: rgba(255,255,255,.3); }
+    .lb-prev { left: -56px; }
+    .lb-next { right: -56px; }
+    .lb-close {
+      position: fixed; top: 20px; right: 24px;
+      background: rgba(255,255,255,.15); border: none;
+      color: #fff; width: 40px; height: 40px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; transition: background .15s;
+    }
+    .lb-close:hover { background: rgba(255,255,255,.3); }
+    .lb-caption {
+      position: fixed; bottom: 20px; left: 0; right: 0;
+      text-align: center; color: rgba(255,255,255,.8);
+      font-size: 13px;
+    }
+
+    /* ═══════════════════════════════════════════
+       DATA TABLE TAB
+    ═══════════════════════════════════════════ */
+    .table-toolbar {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 12px; flex-wrap: wrap;
+    }
+    .table-search-wrap { position: relative; flex: 1; min-width: 200px; }
+    .table-search-wrap input {
+      width: 100%; padding: 8px 10px 8px 30px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px; font-size: 13px;
+      outline: none;
+    }
+    .table-search-wrap input:focus { border-color: var(--green); }
+    .table-search-icon {
+      position: absolute; left: 9px; top: 50%;
+      transform: translateY(-50%); color: var(--grey);
+    }
+    .export-btns { display: flex; gap: 6px; }
+    .btn-export {
+      padding: 7px 12px; border-radius: 8px;
+      border: 1.5px solid var(--border);
+      background: var(--white); color: var(--text);
+      font-size: 12px; font-weight: 600;
+      display: flex; align-items: center; gap: 5px;
+      transition: background .15s;
+    }
+    .btn-export:hover { background: var(--bg); }
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%; border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead th {
+      text-align: left; padding: 10px 12px;
+      background: var(--bg);
+      border-bottom: 2px solid var(--border);
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .04em;
+      color: var(--text-light);
+      white-space: nowrap;
+      cursor: pointer; user-select: none;
+    }
+    thead th:hover { color: var(--text); }
+    thead th .sort-icon { margin-left: 4px; opacity: .4; }
+    thead th.sorted .sort-icon { opacity: 1; color: var(--green); }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:hover { background: #fafafa; }
+    tbody td { padding: 9px 12px; color: var(--text); }
+    .status-badge {
+      display: inline-flex; align-items: center;
+      padding: 2px 8px; border-radius: 20px;
+      font-size: 11px; font-weight: 600;
+      white-space: nowrap;
+    }
+    .status-completed  { background: #d1fae5; color: #065f46; }
+    .status-ongoing    { background: #fef3c7; color: #92400e; }
+    .status-suspended  { background: #fee2e2; color: #991b1b; }
+    .status-unknown    { background: #f3f4f6; color: #6b7280; }
+    .table-pagination {
+      display: flex; align-items: center; gap: 8px;
+      margin-top: 14px; justify-content: flex-end;
+      font-size: 13px; color: var(--text-light);
+    }
+    .pagination-btn {
+      padding: 5px 10px; border: 1.5px solid var(--border);
+      border-radius: 6px; background: var(--white);
+      color: var(--text); font-size: 12px;
+      transition: background .15s;
+    }
+    .pagination-btn:hover:not(:disabled) { background: var(--bg); }
+    .pagination-btn:disabled { opacity: .4; cursor: default; }
+    .pagination-btn.active { background: var(--green); color: #fff; border-color: var(--green); }
+
+    /* ═══════════════════════════════════════════
+       STATUS BAR
+    ═══════════════════════════════════════════ */
+    #status-bar {
+      background: var(--white);
+      border-top: 1px solid var(--border);
+      padding: 8px 24px;
+      font-size: 11px; color: var(--text-light);
+      display: flex; gap: 16px; align-items: center;
+      font-family: var(--mono);
+      position: sticky; bottom: 0; z-index: 100;
+    }
+    #status-bar .status-item strong { color: var(--text); }
+
+    /* ═══════════════════════════════════════════
+       EMPTY STATES
+    ═══════════════════════════════════════════ */
+    .empty-state {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 60px 20px;
+      color: var(--text-light);
+      gap: 10px;
+    }
+    .empty-state svg { width: 40px; height: 40px; opacity: .3; }
+    .empty-state p { font-size: 14px; }
+
+    /* ═══════════════════════════════════════════
+       ANALYTICS SECTION HEADER
+    ═══════════════════════════════════════════ */
+    .section-header {
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .06em;
+      color: var(--text-light);
+      margin: 20px 0 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ═══════════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════════ */
+    @media (max-width: 1200px) {
+      #kpi-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 900px) {
+      .filter-row { grid-template-columns: repeat(3, 1fr); }
+      .chart-grid { grid-template-columns: 1fr; }
+      .photos-grid { grid-template-columns: repeat(3, 1fr); }
+      #map { height: 450px; }
+    }
+    @media (max-width: 768px) {
+      .header-inner { height: auto; padding: 12px 0; gap: 8px; }
+      .header-stats { flex-wrap: wrap; gap: 6px; }
+      .header-subtitle { display: none; }
+      #app-content { padding: 12px 16px 32px; }
+      #kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .filter-row { grid-template-columns: 1fr 1fr; }
+      .photos-grid { grid-template-columns: repeat(2, 1fr); }
+      #map { height: 400px; }
+      .lb-prev { left: -10px; }
+      .lb-next { right: -10px; }
+    }
+    @media (max-width: 480px) {
+      .filter-row { grid-template-columns: 1fr; }
+      #kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .kpi-value { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════
+     LOADING OVERLAY
+════════════════════════════════════════════ -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div id="loading-text">Connecting to KoboToolbox…</div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     ALERT BANNER
+════════════════════════════════════════════ -->
+<div id="alert-banner"></div>
+
+<!-- ════════════════════════════════════════════
+     TOAST CONTAINER
+════════════════════════════════════════════ -->
+<div id="toast-container"></div>
+
+<!-- ════════════════════════════════════════════
+     SETTINGS MODAL
+════════════════════════════════════════════ -->
+<div id="settings-modal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+  <div class="modal-box">
+    <div class="modal-title" id="settings-title">
+      <svg viewBox="0 0 20 20" fill="currentColor" style="width:20px;height:20px;display:inline;vertical-align:-3px;margin-right:6px;color:var(--green)">
+        <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+      </svg>
+      Connection Settings
+    </div>
+    <div class="modal-subtitle">Enter your KoboToolbox API token to load field data. The token is stored only in your browser's localStorage and never sent to any server except the secure Vercel proxy.</div>
+
+    <div class="form-group">
+      <label class="form-label" for="input-token">KoboToolbox API Token</label>
+      <input type="password" id="input-token" class="form-input" placeholder="Token xxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
+      <div class="form-hint">Paste your token from KoboToolbox → Account Settings → API token</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="input-asset">Asset UID</label>
+      <input type="text" id="input-asset" class="form-input" value="aFPhq8BHNDSd2SBKUAbP4y" />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="input-server">KoboToolbox Server URL</label>
+      <input type="text" id="input-server" class="form-input" value="https://kf.kobotoolbox.org" />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="input-proxy">Proxy Base URL</label>
+      <input type="text" id="input-proxy" class="form-input" placeholder="Leave empty when hosted on Vercel" />
+      <div class="form-hint">Only required when hosting this page on GitHub Pages. Set to your Vercel deployment URL (e.g. https://drdip-dashboard.vercel.app).</div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeSettings()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSettings()">Save &amp; Connect</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     LIGHTBOX
+════════════════════════════════════════════ -->
+<div id="lightbox" class="hidden" role="dialog" aria-modal="true" aria-label="Photo lightbox">
+  <button class="lb-close" onclick="closeLightbox()" aria-label="Close lightbox">&#x2715;</button>
+  <div class="lb-img-wrap">
+    <img id="lb-img" src="" alt="Field photo" />
+    <button class="lb-btn lb-prev" onclick="prevPhoto()" aria-label="Previous photo">&#8592;</button>
+    <button class="lb-btn lb-next" onclick="nextPhoto()" aria-label="Next photo">&#8594;</button>
+  </div>
+  <div class="lb-caption" id="lb-caption"></div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     HEADER
+════════════════════════════════════════════ -->
+<header id="main-header">
+  <div class="header-inner">
+    <div class="header-brand">
+      <div class="header-logo">
+        <svg viewBox="0 0 24 24"><path d="M17 8C8 10 5.9 16.17 3.82 19.62L5.71 21l1-1.5A4.96 4.96 0 008 20c3 0 3-2 6-2s3 2 6 2v-2c-3 0-3-2-6-2-.56 0-1.04.07-1.49.18C13.07 12.78 14.93 10.86 17 8zm-2 7.5c.26-.85.51-1.65.74-2.4.5-.25 1.03-.44 1.76-.6A7.22 7.22 0 0119 12c0-.41-.04-.81-.1-1.2C17.18 11.93 15.94 13.43 15 15.5z"/></svg>
+      </div>
+      <div class="header-titles">
+        <div class="header-title">DRDIP-II Field Monitoring</div>
+        <div class="header-subtitle">Live Dashboard — Somali Region Bureau of Agriculture</div>
+      </div>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-stats">
+      <span id="conn-status">
+        <span class="conn-dot offline" id="conn-dot"></span>
+        <span id="conn-text" style="color:rgba(255,255,255,.6);font-size:12px">Disconnected</span>
+      </span>
+      <span class="stat-pill">Somali: <strong id="hdr-somali">—</strong></span>
+      <span class="stat-pill">Total: <strong id="hdr-total">—</strong></span>
+    </div>
+    <div class="header-actions">
+      <button class="header-btn" onclick="loadData()" id="refresh-btn" aria-label="Refresh data">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>
+        Refresh
+      </button>
+      <button class="header-btn" onclick="openSettings()" aria-label="Open settings">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
+        Settings
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ════════════════════════════════════════════
+     MAIN APP CONTENT
+════════════════════════════════════════════ -->
+<main id="app-content">
+
+  <!-- KPI CARDS -->
+  <div id="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:#e8f5e9"><svg viewBox="0 0 20 20" fill="#0a7c3a"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg></div>
+      <div class="kpi-label">Total Submissions</div>
+      <div class="kpi-value" id="kpi-total">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:#d1fae5"><svg viewBox="0 0 20 20" fill="#10b981"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg></div>
+      <div class="kpi-label">Completed</div>
+      <div class="kpi-value" id="kpi-completed">—</div>
+      <div class="kpi-sub" id="kpi-completed-pct"></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:#dbeafe"><svg viewBox="0 0 20 20" fill="#3b82f6"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg></div>
+      <div class="kpi-label">Beneficiaries</div>
+      <div class="kpi-value" id="kpi-benef">—</div>
+      <div class="kpi-sub" id="kpi-benef-sub"></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:#fce7f3"><svg viewBox="0 0 20 20" fill="#ec4899"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg></div>
+      <div class="kpi-label">Female Share</div>
+      <div class="kpi-value" id="kpi-female">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:#ede9fe"><svg viewBox="0 0 20 20" fill="#8b5cf6"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg></div>
+      <div class="kpi-label">Woredas</div>
+      <div class="kpi-value" id="kpi-woredas">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:#cffafe"><svg viewBox="0 0 20 20" fill="#06b6d4"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg></div>
+      <div class="kpi-label">Kebeles</div>
+      <div class="kpi-value" id="kpi-kebeles">—</div>
+    </div>
+  </div>
+
+  <!-- FILTER CARD -->
+  <div id="filter-card">
+    <div class="filter-row">
+      <div class="filter-group">
+        <label class="filter-label" for="f-woreda">Woreda</label>
+        <select class="filter-select" id="f-woreda" onchange="applyFilters()"><option value="">All</option></select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label" for="f-kebele">Kebele</label>
+        <select class="filter-select" id="f-kebele" onchange="applyFilters()"><option value="">All</option></select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label" for="f-component">Component</label>
+        <select class="filter-select" id="f-component" onchange="applyFilters()"><option value="">All</option></select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label" for="f-subcomponent">Sub-Component</label>
+        <select class="filter-select" id="f-subcomponent" onchange="applyFilters()"><option value="">All</option></select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label" for="f-worktype">Work Type</label>
+        <select class="filter-select" id="f-worktype" onchange="applyFilters()"><option value="">All</option></select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label" for="f-status">Status</label>
+        <select class="filter-select" id="f-status" onchange="applyFilters()"><option value="">All</option></select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label" for="f-search">Search</label>
+        <div class="filter-search-wrap">
+          <svg class="filter-search-icon" viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 001.415-1.414l-3.85-3.85a1.007 1.007 0 00-.115-.099zm-5.242 1.156a5.5 5.5 0 110-11 5.5 5.5 0 010 11z"/></svg>
+          <input type="text" id="f-search" class="filter-input" placeholder="Search…" oninput="applyFilters()" />
+        </div>
+      </div>
+    </div>
+    <div class="filter-summary" id="filter-summary"></div>
+  </div>
+
+  <!-- TAB BAR -->
+  <div id="tab-bar" role="tablist">
+    <button class="tab-btn active" onclick="switchTab('overview')" id="tab-btn-overview" role="tab" aria-selected="true">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h5v5H2zm0 7h5v5H2zm7-7h5v5H9zm0 7h5v5H9z"/></svg>
+      Overview
+    </button>
+    <button class="tab-btn" onclick="switchTab('map')" id="tab-btn-map" role="tab" aria-selected="false">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a5 5 0 00-5 5c0 4.5 5 11 5 11s5-6.5 5-11a5 5 0 00-5-5zm0 7a2 2 0 110-4 2 2 0 010 4z"/></svg>
+      Map View
+    </button>
+    <button class="tab-btn" onclick="switchTab('photos')" id="tab-btn-photos" role="tab" aria-selected="false">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6.002 5.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM2.5 1A1.5 1.5 0 001 2.5v11A1.5 1.5 0 002.5 15h11a1.5 1.5 0 001.5-1.5v-11A1.5 1.5 0 0013.5 1h-11zm1 1h9a.5.5 0 01.5.5v8.171L9.267 7.68a.5.5 0 00-.7-.037L5.43 10.55l-1.8-1.8a.5.5 0 00-.688-.013L2 9.858V2.5a.5.5 0 01.5-.5z"/></svg>
+      Photos
+    </button>
+    <button class="tab-btn" onclick="switchTab('table')" id="tab-btn-table" role="tab" aria-selected="false">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M0 2a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H2a2 2 0 01-2-2V2zm15 2H1v2h14V4zm0 3H1v2h14V7zm0 3H1v2h14v-2zm0 3H1v2h14v-2z"/></svg>
+      Data Table
+    </button>
+    <button class="tab-btn" onclick="switchTab('analytics')" id="tab-btn-analytics" role="tab" aria-selected="false">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 11H2v3h2v-3zm5-4H7v7h2V7zm5-5h-2v12h2V2zm-2-1a1 1 0 00-1 1v12a1 1 0 001 1h2a1 1 0 001-1V2a1 1 0 00-1-1h-2zm-6 4a1 1 0 00-1 1v7a1 1 0 001 1h2a1 1 0 001-1V6a1 1 0 00-1-1H6zM1 10a1 1 0 011-1h2a1 1 0 011 1v3a1 1 0 01-1 1H2a1 1 0 01-1-1v-3z"/></svg>
+      Analytics
+    </button>
+  </div>
+
+  <!-- ══ TAB: OVERVIEW ══ -->
+  <div class="tab-panel active" id="tab-overview">
+    <div class="chart-grid">
+      <div class="card">
+        <div class="card-title">Implementation Status</div>
+        <div class="chart-wrap"><canvas id="chart-status" height="220"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Top Woredas by Submissions</div>
+        <div class="chart-wrap"><canvas id="chart-woredas" height="220"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Component Distribution</div>
+        <div class="chart-wrap"><canvas id="chart-components" height="220"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Sub-Component Breakdown</div>
+        <div class="chart-wrap"><canvas id="chart-subcomp" height="220"></canvas></div>
+      </div>
+      <div class="card chart-full">
+        <div class="card-title">Top Work Types</div>
+        <div class="chart-wrap"><canvas id="chart-worktypes" height="180"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: MAP ══ -->
+  <div class="tab-panel" id="tab-map">
+    <div id="map-container">
+      <div id="map"></div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: PHOTOS ══ -->
+  <div class="tab-panel" id="tab-photos">
+    <div id="photos-grid" class="photos-grid"></div>
+    <div class="photos-load-more" id="photos-load-more" style="display:none">
+      <button class="btn btn-ghost" onclick="loadMorePhotos()">Load More Photos</button>
+    </div>
+    <div id="photos-empty" class="empty-state" style="display:none">
+      <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/></svg>
+      <p>No photos found for the current filters</p>
+    </div>
+  </div>
+
+  <!-- ══ TAB: DATA TABLE ══ -->
+  <div class="tab-panel" id="tab-table">
+    <div class="card">
+      <div class="table-toolbar">
+        <div class="table-search-wrap">
+          <svg class="table-search-icon" viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M11.742 10.344a6.5 6.5 0 10-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 001.415-1.414l-3.85-3.85a1.007 1.007 0 00-.115-.099zm-5.242 1.156a5.5 5.5 0 110-11 5.5 5.5 0 010 11z"/></svg>
+          <input type="text" id="table-search" placeholder="Search table…" oninput="renderTable()" />
+        </div>
+        <div class="export-btns">
+          <button class="btn-export" onclick="exportCSV()">
+            <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor"><path d="M.5 9.9a.5.5 0 01.5.5v2.5a1 1 0 001 1h12a1 1 0 001-1v-2.5a.5.5 0 011 0v2.5a2 2 0 01-2 2H2a2 2 0 01-2-2v-2.5a.5.5 0 01.5-.5z"/><path d="M7.646 11.854a.5.5 0 00.708 0l3-3a.5.5 0 00-.708-.708L8.5 10.293V1.5a.5.5 0 00-1 0v8.793L5.354 8.146a.5.5 0 10-.708.708l3 3z"/></svg>
+            CSV
+          </button>
+          <button class="btn-export" onclick="exportJSON()">
+            <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor"><path d="M.5 9.9a.5.5 0 01.5.5v2.5a1 1 0 001 1h12a1 1 0 001-1v-2.5a.5.5 0 011 0v2.5a2 2 0 01-2 2H2a2 2 0 01-2-2v-2.5a.5.5 0 01.5-.5z"/><path d="M7.646 11.854a.5.5 0 00.708 0l3-3a.5.5 0 00-.708-.708L8.5 10.293V1.5a.5.5 0 00-1 0v8.793L5.354 8.146a.5.5 0 10-.708.708l3 3z"/></svg>
+            JSON
+          </button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="data-table">
+          <thead>
+            <tr>
+              <th onclick="sortTable(0)" data-col="0">#<span class="sort-icon">↕</span></th>
+              <th onclick="sortTable(1)" data-col="1">Date<span class="sort-icon">↕</span></th>
+              <th onclick="sortTable(2)" data-col="2">Woreda<span class="sort-icon">↕</span></th>
+              <th onclick="sortTable(3)" data-col="3">Kebele<span class="sort-icon">↕</span></th>
+              <th onclick="sortTable(4)" data-col="4">Component<span class="sort-icon">↕</span></th>
+              <th onclick="sortTable(5)" data-col="5">Sub-Component<span class="sort-icon">↕</span></th>
+              <th onclick="sortTable(6)" data-col="6">Work Type<span class="sort-icon">↕</span></th>
+              <th onclick="sortTable(7)" data-col="7">Status<span class="sort-icon">↕</span></th>
+              <th onclick="sortTable(8)" data-col="8">Beneficiaries<span class="sort-icon">↕</span></th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+      <div class="table-pagination" id="table-pagination"></div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: ANALYTICS ══ -->
+  <div class="tab-panel" id="tab-analytics">
+    <div class="chart-grid">
+      <div class="card chart-full">
+        <div class="card-title">Submissions Over Time (Cumulative)</div>
+        <div class="chart-wrap"><canvas id="chart-timeline" height="160"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Host vs Refugee Beneficiaries by Woreda</div>
+        <div class="chart-wrap"><canvas id="chart-host-refugee" height="260"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Gender Composition</div>
+        <div class="chart-wrap"><canvas id="chart-gender" height="260"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Beneficiaries by Woreda</div>
+        <div class="chart-wrap"><canvas id="chart-benef-woreda" height="260"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Committee Establishment Rate (%)</div>
+        <div class="chart-wrap"><canvas id="chart-committees" height="260"></canvas></div>
+      </div>
+      <div class="card chart-full">
+        <div class="card-title">Component Completion Rate (%)</div>
+        <div class="chart-wrap"><canvas id="chart-completion" height="180"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- STATUS BAR -->
+<footer id="status-bar">
+  <span class="status-item">Somali records: <strong id="sb-somali">—</strong></span>
+  <span class="status-item">Filtered: <strong id="sb-filtered">—</strong></span>
+  <span class="status-item">Total KoboToolbox: <strong id="sb-total">—</strong></span>
+  <span class="status-item" id="sb-updated"></span>
+</footer>
+
+<!-- Leaflet + MarkerCluster + Chart.js -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════════════
+   CONFIGURATION
+═══════════════════════════════════════════════════ */
+function getConfig() {
+  return {
+    token:     localStorage.getItem('kobo_token') || '',
+    asset:     localStorage.getItem('kobo_asset')  || 'aFPhq8BHNDSd2SBKUAbP4y',
+    server:    localStorage.getItem('kobo_server') || 'https://kf.kobotoolbox.org',
+    proxyBase: localStorage.getItem('kobo_proxy')  || window.location.origin,
+  };
+}
+
+/* ═══════════════════════════════════════════════════
+   FIELD ALIAS MAP
+═══════════════════════════════════════════════════ */
+const FIELDS = {
+  id:           ['_id'],
+  submitted:    ['_submission_time','submission_time'],
+  region:       ['region','Region','REGION','admin_region','Regional_State','regional_state'],
+  woreda:       ['woreda','Woreda','WOREDA','district','District','city','City','administration'],
+  kebele:       ['kebele','Kebele','kebele_camp_sub','camp','Camp','sub_kebele','Sub_Kebele'],
+  component:    ['component','Component','COMPONENT','Project_Component','project_component'],
+  subcomponent: ['sub_component','Sub_Component','subcomponent','Subcomponent'],
+  worktype:     ['work_type','Work_Type','WORK_TYPE','activity_type','Activity_Type','subproject_type','Subproject_Type'],
+  status:       ['status','Status','STATUS','Status_of_the','implementation_status','Implementation_Status'],
+  beneficiaries:['benef_tot','benef_total','total_beneficiaries','Total_Benef','total_benef','beneficiaries'],
+  female:       ['female_benef','female_total','Female_Benef','female'],
+  male:         ['male_benef','male_total','Male_Benef','male'],
+  host:         ['host_total','host_beneficiaries','Host_Total','host'],
+  refugee:      ['refu_total','refugee_beneficiaries','Refugee_Total','refugee'],
+  name:         ['localName','Local_name','name','project_name','Name','subproject_name','Subproject_Name'],
+  geo:          ['_geolocation','geolocation','GPS','gps','location'],
+  photos:       ['_attachments','attachments'],
+  cpmc:         ['CPMC_establishment','cpmc','CPMC'],
+  cpc:          ['CPC_establishment','cpc','CPC'],
+  sauc:         ['SAuC_establishment','sauc','SAUC','SAuC'],
+  kdc:          ['KDC_establishment','kdc','KDC'],
+};
+
+function getField(record, key) {
+  const aliases = FIELDS[key];
+  if (!aliases) return '';
+  for (const alias of aliases) {
+    const val = record[alias];
+    if (val !== undefined && val !== null && val !== '') return val;
+  }
+  return '';
+}
+
+/* ═══════════════════════════════════════════════════
+   SOMALI REGION KNOWN NAMES
+═══════════════════════════════════════════════════ */
+const SOMALI_NAMES = new Set([
+  'awbare','awbarre','kebribeyah','kabribayah','kebri beyah',
+  'dollo ado','dolo ado','dollo addo',
+  'bokolmayo','bokol mayo','dollo bay','dolo bay',
+  'kebribeyah city administration','kebribeyah city',
+  'danot','danood','bokh','boh',
+]);
+
+/* ═══════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════ */
+function normalizeText(v) {
+  if (v === null || v === undefined) return '';
+  return String(v).toLowerCase().trim().replace(/\s+/g,' ').replace(/-/g,' ');
+}
+
+function toNumber(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  const n = parseFloat(String(v).replace(/,/g,''));
+  return isNaN(n) ? 0 : n;
+}
+
+function formatNumber(v) {
+  const n = toNumber(v);
+  return n === 0 ? '0' : n.toLocaleString();
+}
+
+function formatPercent(num, total) {
+  if (!total) return '0%';
+  return ((num / total) * 100).toFixed(1) + '%';
+}
+
+function formatDate(v) {
+  if (!v) return '—';
+  try {
+    const d = new Date(v);
+    if (isNaN(d)) return String(v).slice(0, 10);
+    return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+  } catch { return String(v).slice(0, 10); }
+}
+
+function getStatus(record) {
+  const raw = normalizeText(getField(record, 'status'));
+  if (!raw) return 'unknown';
+  if (raw.includes('complet') || raw.includes('done') || raw.includes('final')) return 'completed';
+  if (raw.includes('ongo') || raw.includes('progress') || raw.includes('active') || raw.includes('start')) return 'ongoing';
+  if (raw.includes('suspend') || raw.includes('halt') || raw.includes('stop') || raw.includes('cancel')) return 'suspended';
+  return raw || 'unknown';
+}
+
+function getGeo(record) {
+  const geo = getField(record, 'geo');
+  if (!geo) return null;
+  try {
+    let lat, lng;
+    if (Array.isArray(geo)) {
+      [lat, lng] = geo;
+    } else if (typeof geo === 'string') {
+      const parts = geo.trim().split(/[\s,]+/);
+      lat = parseFloat(parts[0]);
+      lng = parseFloat(parts[1]);
+    } else if (typeof geo === 'object') {
+      lat = geo.lat || geo.latitude || geo[0];
+      lng = geo.lng || geo.lon || geo.longitude || geo[1];
+    }
+    lat = parseFloat(lat);
+    lng = parseFloat(lng);
+    if (isNaN(lat) || isNaN(lng)) return null;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+    if (lat === 0 && lng === 0) return null;
+    return { lat, lng };
+  } catch { return null; }
+}
+
+function getPhotos(record) {
+  const attachments = getField(record, 'photos');
+  if (!Array.isArray(attachments) || !attachments.length) return [];
+  return attachments.map(att => {
+    const url = att.download_large_url || att.download_url || att.download_medium_url || att.download_small_url || '';
+    return { url, filename: att.filename || '' };
+  }).filter(p => p.url);
+}
+
+function isSomali(record) {
+  const region = normalizeText(getField(record, 'region'));
+  const woreda = normalizeText(getField(record, 'woreda'));
+  if (region.includes('somali')) return true;
+  if (woreda.includes('somali')) return true;
+  for (const name of SOMALI_NAMES) {
+    if (woreda.includes(name) || region.includes(name)) return true;
+  }
+  return false;
+}
+
+/* ═══════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════ */
+let RAW_DATA = [];
+let ALL_DATA = [];
+let FILTERED_DATA = [];
+const CHARTS = {};
+let MAP_INSTANCE = null;
+let MAP_CLUSTER = null;
+let TABLE_SORT_COL = 0;
+let TABLE_SORT_ASC = true;
+let TABLE_PAGE = 1;
+const TABLE_PAGE_SIZE = 25;
+let PHOTOS_SHOWN = 24;
+let LB_PHOTOS = [];
+let LB_INDEX = 0;
+
+/* ═══════════════════════════════════════════════════
+   LOADING / ALERTS
+═══════════════════════════════════════════════════ */
+function showLoading(msg) {
+  document.getElementById('loading-text').textContent = msg || 'Loading…';
+  document.getElementById('loading-overlay').classList.remove('hidden');
+}
+
+function hideLoading() {
+  document.getElementById('loading-overlay').classList.add('hidden');
+}
+
+function showAlert(msg, type = 'error') {
+  const banner = document.getElementById('alert-banner');
+  banner.innerHTML = `<div class="alert alert-${type}">
+    <span>${msg}</span>
+    <button class="alert-close" onclick="this.parentElement.remove()" aria-label="Close">&#x2715;</button>
+  </div>`;
+  setTimeout(() => { const el = banner.querySelector('.alert'); if (el) el.remove(); }, 8000);
+}
+
+function showToast(msg, type = 'info') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+/* ═══════════════════════════════════════════════════
+   CONNECTION STATUS
+═══════════════════════════════════════════════════ */
+function setConnStatus(state, text) {
+  const dot = document.getElementById('conn-dot');
+  const txt = document.getElementById('conn-text');
+  dot.className = 'conn-dot ' + state;
+  txt.textContent = text;
+}
+
+/* ═══════════════════════════════════════════════════
+   SETTINGS MODAL
+═══════════════════════════════════════════════════ */
+function openSettings() {
+  const cfg = getConfig();
+  document.getElementById('input-token').value = '';
+  document.getElementById('input-asset').value  = cfg.asset;
+  document.getElementById('input-server').value = cfg.server;
+  document.getElementById('input-proxy').value  = localStorage.getItem('kobo_proxy') || '';
+  document.getElementById('settings-modal').classList.remove('hidden');
+  document.getElementById('input-token').focus();
+}
+
+function closeSettings() {
+  document.getElementById('settings-modal').classList.add('hidden');
+}
+
+function saveSettings() {
+  const token  = document.getElementById('input-token').value.trim();
+  const asset  = document.getElementById('input-asset').value.trim();
+  const server = document.getElementById('input-server').value.trim();
+  const proxy  = document.getElementById('input-proxy').value.trim();
+
+  if (!token) { showToast('Token is required', 'error'); return; }
+  if (!asset)  { showToast('Asset UID is required', 'error'); return; }
+  if (!server) { showToast('Server URL is required', 'error'); return; }
+
+  localStorage.setItem('kobo_token',  token);
+  localStorage.setItem('kobo_asset',  asset);
+  localStorage.setItem('kobo_server', server);
+  if (proxy) localStorage.setItem('kobo_proxy', proxy);
+  else       localStorage.removeItem('kobo_proxy');
+
+  closeSettings();
+  showToast('Settings saved — connecting…', 'success');
+  loadData();
+}
+
+/* ═══════════════════════════════════════════════════
+   LOAD DATA FROM PROXY
+═══════════════════════════════════════════════════ */
+async function loadData() {
+  const cfg = getConfig();
+
+  if (!cfg.token) {
+    openSettings();
+    hideLoading();
+    return;
+  }
+
+  showLoading('Loading DRDIP-II data…');
+  setConnStatus('loading', 'Loading…');
+
+  const proxyBase = cfg.proxyBase.replace(/\/$/, '');
+  const url = `${proxyBase}/api/kobo-proxy?server=${encodeURIComponent(cfg.server)}&asset=${encodeURIComponent(cfg.asset)}`;
+
+  let resp, data;
+  try {
+    resp = await fetch(url, {
+      headers: { 'Authorization': `Token ${cfg.token}` },
+    });
+  } catch (err) {
+    hideLoading();
+    setConnStatus('offline', 'Connection failed');
+    showAlert('Network error — could not reach the proxy. Check your internet connection and proxy base URL in Settings.', 'error');
+    return;
+  }
+
+  try {
+    data = await resp.json();
+  } catch {
+    hideLoading();
+    setConnStatus('offline', 'Invalid response');
+    showAlert('The proxy returned an invalid response (not JSON).', 'error');
+    return;
+  }
+
+  if (!resp.ok || data.error) {
+    hideLoading();
+    setConnStatus('offline', `Error ${resp.status}`);
+    showAlert(`KoboToolbox error: ${data.error || resp.statusText}`, 'error');
+    return;
+  }
+
+  // Parse results
+  RAW_DATA = Array.isArray(data.results) ? data.results
+           : Array.isArray(data)         ? data
+           : [];
+
+  ALL_DATA = RAW_DATA.filter(isSomali);
+  FILTERED_DATA = [...ALL_DATA];
+
+  // Update header counts
+  document.getElementById('hdr-total').textContent  = formatNumber(RAW_DATA.length);
+  document.getElementById('hdr-somali').textContent = formatNumber(ALL_DATA.length);
+  document.getElementById('sb-total').textContent   = formatNumber(RAW_DATA.length);
+  document.getElementById('sb-somali').textContent  = formatNumber(ALL_DATA.length);
+  document.getElementById('sb-updated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+
+  setConnStatus('online', `${formatNumber(ALL_DATA.length)} Somali records`);
+  populateFilters();
+  renderAll();
+  hideLoading();
+  showToast(`Loaded ${formatNumber(ALL_DATA.length)} Somali Region records`, 'success');
+}
+
+/* ═══════════════════════════════════════════════════
+   FILTER LOGIC
+═══════════════════════════════════════════════════ */
+function populateFilters() {
+  const collect = (key) => {
+    const vals = new Set();
+    ALL_DATA.forEach(r => { const v = getField(r, key); if (v) vals.add(v); });
+    return [...vals].sort();
+  };
+
+  const fields = [
+    ['f-woreda',       'woreda'],
+    ['f-kebele',       'kebele'],
+    ['f-component',    'component'],
+    ['f-subcomponent', 'subcomponent'],
+    ['f-worktype',     'worktype'],
+    ['f-status',       'status'],
+  ];
+
+  fields.forEach(([id, key]) => {
+    const sel = document.getElementById(id);
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">All</option>';
+    collect(key).forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = v;
+      if (v === cur) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+function applyFilters() {
+  const woreda     = document.getElementById('f-woreda').value;
+  const kebele     = document.getElementById('f-kebele').value;
+  const component  = document.getElementById('f-component').value;
+  const subcomp    = document.getElementById('f-subcomponent').value;
+  const worktype   = document.getElementById('f-worktype').value;
+  const status     = document.getElementById('f-status').value;
+  const search     = normalizeText(document.getElementById('f-search').value);
+
+  FILTERED_DATA = ALL_DATA.filter(r => {
+    if (woreda    && getField(r,'woreda')       !== woreda)    return false;
+    if (kebele    && getField(r,'kebele')        !== kebele)    return false;
+    if (component && getField(r,'component')     !== component) return false;
+    if (subcomp   && getField(r,'subcomponent')  !== subcomp)   return false;
+    if (worktype  && getField(r,'worktype')      !== worktype)  return false;
+    if (status    && getField(r,'status')        !== status)    return false;
+    if (search) {
+      const haystack = normalizeText(JSON.stringify(r));
+      if (!haystack.includes(search)) return false;
+    }
+    return true;
+  });
+
+  const summary = document.getElementById('filter-summary');
+  const active = [woreda,kebele,component,subcomp,worktype,status,search].filter(Boolean).length;
+  if (active) {
+    summary.innerHTML = `Showing <strong>${FILTERED_DATA.length}</strong> of <strong>${ALL_DATA.length}</strong> records (${active} filter${active>1?'s':''} active)`;
+  } else {
+    summary.innerHTML = `Showing all <strong>${FILTERED_DATA.length}</strong> Somali Region records`;
+  }
+
+  document.getElementById('sb-filtered').textContent = formatNumber(FILTERED_DATA.length);
+  TABLE_PAGE = 1;
+  PHOTOS_SHOWN = 24;
+  renderAll();
+}
+
+function clearFilters() {
+  ['f-woreda','f-kebele','f-component','f-subcomponent','f-worktype','f-status'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('f-search').value = '';
+  applyFilters();
+}
+
+/* ═══════════════════════════════════════════════════
+   RENDER ALL
+═══════════════════════════════════════════════════ */
+function renderAll() {
+  renderKPIs();
+  renderCharts();
+  renderAnalytics();
+  renderMap();
+  renderPhotos();
+  renderTable();
+
+  const summary = document.getElementById('filter-summary');
+  if (!summary.textContent) {
+    summary.innerHTML = `Showing all <strong>${FILTERED_DATA.length}</strong> Somali Region records`;
+  }
+  document.getElementById('sb-filtered').textContent = formatNumber(FILTERED_DATA.length);
+}
+
+/* ═══════════════════════════════════════════════════
+   KPI CARDS
+═══════════════════════════════════════════════════ */
+function renderKPIs() {
+  const d = FILTERED_DATA;
+  const total = d.length;
+
+  const completed = d.filter(r => getStatus(r) === 'completed').length;
+  const benef = d.reduce((s,r) => s + toNumber(getField(r,'beneficiaries')), 0);
+  const female = d.reduce((s,r) => s + toNumber(getField(r,'female')), 0);
+  const host   = d.reduce((s,r) => s + toNumber(getField(r,'host')), 0);
+  const refugee = d.reduce((s,r) => s + toNumber(getField(r,'refugee')), 0);
+  const woredas = new Set(d.map(r => getField(r,'woreda')).filter(Boolean)).size;
+  const kebeles = new Set(d.map(r => getField(r,'kebele')).filter(Boolean)).size;
+
+  document.getElementById('kpi-total').textContent = formatNumber(total);
+  document.getElementById('kpi-completed').textContent = formatNumber(completed);
+  document.getElementById('kpi-completed-pct').textContent = total ? formatPercent(completed, total) + ' completion' : '';
+  document.getElementById('kpi-benef').textContent = formatNumber(benef);
+  document.getElementById('kpi-benef-sub').textContent = benef ? `Host ${formatNumber(host)} / Refugee ${formatNumber(refugee)}` : '';
+  document.getElementById('kpi-female').textContent = female && benef ? formatPercent(female, benef) : '—';
+  document.getElementById('kpi-woredas').textContent = formatNumber(woredas);
+  document.getElementById('kpi-kebeles').textContent = formatNumber(kebeles);
+}
+
+/* ═══════════════════════════════════════════════════
+   CHART HELPERS
+═══════════════════════════════════════════════════ */
+const PALETTE = ['#0a7c3a','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#ef4444','#10b981','#f97316','#6366f1'];
+
+function destroyChart(id) {
+  if (CHARTS[id]) { CHARTS[id].destroy(); delete CHARTS[id]; }
+}
+
+function topN(arr, n = 10) {
+  return arr.sort((a,b) => b.v - a.v).slice(0, n);
+}
+
+function countBy(data, keyFn) {
+  const map = {};
+  data.forEach(r => {
+    const k = keyFn(r) || 'Unknown';
+    map[k] = (map[k] || 0) + 1;
+  });
+  return Object.entries(map).map(([k,v]) => ({k,v}));
+}
+
+function sumBy(data, keyFn, valFn) {
+  const map = {};
+  data.forEach(r => {
+    const k = keyFn(r) || 'Unknown';
+    map[k] = (map[k] || 0) + valFn(r);
+  });
+  return Object.entries(map).map(([k,v]) => ({k,v}));
+}
+
+function emptyChart(canvasId, msg) {
+  destroyChart(canvasId);
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const wrap = canvas.parentElement;
+  canvas.style.display = 'none';
+  let em = wrap.querySelector('.chart-empty');
+  if (!em) { em = document.createElement('div'); em.className = 'chart-empty'; wrap.appendChild(em); }
+  em.textContent = msg || 'No data available';
+}
+
+function showCanvas(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  canvas.style.display = '';
+  const em = canvas.parentElement.querySelector('.chart-empty');
+  if (em) em.remove();
+}
+
+/* ═══════════════════════════════════════════════════
+   OVERVIEW CHARTS
+═══════════════════════════════════════════════════ */
+function renderCharts() {
+  const d = FILTERED_DATA;
+
+  // 1. Status doughnut
+  (function() {
+    const id = 'chart-status';
+    destroyChart(id);
+    const counts = countBy(d, r => {
+      const s = getStatus(r);
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    });
+    if (!counts.length) { emptyChart(id, 'No status data'); return; }
+    showCanvas(id);
+    const labels = counts.map(x=>x.k);
+    const vals   = counts.map(x=>x.v);
+    const colors = labels.map(l => {
+      const ll = l.toLowerCase();
+      if (ll.includes('complet')) return '#10b981';
+      if (ll.includes('ongo'))    return '#f59e0b';
+      if (ll.includes('suspend')) return '#ef4444';
+      return '#9ca3af';
+    });
+    CHARTS[id] = new Chart(document.getElementById(id), {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data: vals, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
+      options: { plugins: { legend: { position: 'bottom' } }, cutout: '60%' },
+    });
+  })();
+
+  // 2. Top Woredas
+  (function() {
+    const id = 'chart-woredas';
+    destroyChart(id);
+    const raw = topN(countBy(d, r => getField(r,'woreda')));
+    if (!raw.length) { emptyChart(id, 'No woreda data'); return; }
+    showCanvas(id);
+    CHARTS[id] = new Chart(document.getElementById(id), {
+      type: 'bar',
+      data: { labels: raw.map(x=>x.k), datasets: [{ label: 'Submissions', data: raw.map(x=>x.v), backgroundColor: '#0a7c3a', borderRadius: 4 }] },
+      options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } },
+    });
+  })();
+
+  // 3. Component pie
+  (function() {
+    const id = 'chart-components';
+    destroyChart(id);
+    const raw = countBy(d, r => getField(r,'component'));
+    if (!raw.length) { emptyChart(id, 'No component data'); return; }
+    showCanvas(id);
+    CHARTS[id] = new Chart(document.getElementById(id), {
+      type: 'pie',
+      data: { labels: raw.map(x=>x.k), datasets: [{ data: raw.map(x=>x.v), backgroundColor: PALETTE, borderWidth: 2, borderColor: '#fff' }] },
+      options: { plugins: { legend: { position: 'bottom' } } },
+    });
+  })();
+
+  // 4. Sub-Component bar
+  (function() {
+    const id = 'chart-subcomp';
+    destroyChart(id);
+    const raw = topN(countBy(d, r => getField(r,'subcomponent')));
+    if (!raw.length) { emptyChart(id, 'No sub-component data'); return; }
+    showCanvas(id);
+    CHARTS[id] = new Chart(document.getElementById(id), {
+      type: 'bar',
+      data: { labels: raw.map(x=>x.k), datasets: [{ data: raw.map(x=>x.v), backgroundColor: PALETTE, borderRadius: 4 }] },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } }, },
+    });
+  })();
+
+  // 5. Work Types
+  (function() {
+    const id = 'chart-worktypes';
+    destroyChart(id);
+    const raw = topN(countBy(d, r => getField(r,'worktype')), 12);
+    if (!raw.length) { emptyChart(id, 'No work type data'); return; }
+    showCanvas(id);
+    CHARTS[id] = new Chart(document.getElementById(id), {
+      type: 'bar',
+      data: { labels: raw.map(x=>x.k), datasets: [{ label: 'Count', data: raw.map(x=>x.v), backgroundColor: '#3b82f6', borderRadius: 4 }] },
+      options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } },
+    });
+  })();
+}
+
+/* ═══════════════════════════════════════════════════
+   ANALYTICS CHARTS
+═══════════════════════════════════════════════════ */
+function renderAnalytics() {
+  const d = FILTERED_DATA;
+
+  // 1. Timeline
+  (function() {
+    const id = 'chart-timeline';
+    destroyChart(id);
+    const dated = d.map(r => getField(r,'submitted')).filter(Boolean).sort();
+    if (!dated.length) { emptyChart(id, 'No date data'); return; }
+    showCanvas(id);
+    // Group by week
+    const byDay = {};
+    dated.forEach(dt => {
+      const day = String(dt).slice(0,10);
+      byDay[day] = (byDay[day]||0)+1;
+    });
+    const days = Object.keys(byDay).sort();
+    let cum = 0;
+    const cumVals = days.map(d => { cum += byDay[d]; return cum; });
+    CHARTS[id] = new Chart(document.getElementById(id), {
+      type: 'line',
+      data: {
+        labels: days,
+        datasets: [{
+          label: 'Cumulative Submissions',
+          data: cumVals,
+          borderColor: '#0a7c3a',
+          backgroundColor: 'rgba(10,124,58,.08)',
+          fill: true,
+          tension: .3,
+          pointRadius: cumVals.length > 60 ? 0 : 3,
+        }],
+      },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } },
+    });
+  })();
+
+  // 2. Host vs Refugee by Woreda
+  (function() {
+    const id = 'chart-host-refugee';
+    destroyChart(id);
+    const wMap = {};
+    d.forEach(r => {
+      const w = getField(r,'woreda') || 'Unknown';
+      if (!wMap[w]) wMap[w] = {host:0, refugee:0};
+      wMap[w].host    += toNumber(getField(r,'host'));
+      wMap[w].refugee += toNumber(getField(r,'refugee'));
+    });
+    const entries = Object.entries(wMap).filter(([,v])=>v.host+v.refugee>0)
+      .sort((a,b)=>(b[1].host+b[1].refugee)-(a[1].host+a[1].refugee)).slice(0,10);
+    if (!entries.length) { emptyChart(id, 'No host/refugee data'); return; }
+    showCanvas(id);
+    CHARTS[id] = new Chart(document.getElementById(id), {
+      type: 'bar',
+      data: {
+        labels: entries.map(([k])=>k),
+        datasets: [
+          { label: 'Host',    data: entries.map(([,v])=>v.host),    backgroundColor: '#3b82f6', borderRadius: 3 },
+          { label: 'Refugee', data: entries.map(([,v])=>v.refugee), backgroundColor: '#f59e0b', borderRadius: 3 },
+        ],
+      },
+      options: { indexAxis: 'y', plugins: { legend: { position: 'bottom' } }, scales: { x: { beginAtZero: true, stacked: true }, y: { stacked: true } } },
+    });
+  })();
+
+  // 3. Gender doughnut
+  (function() {
+    const id = 'chart-gender';
+    destroyChart(id);
+    const female = d.reduce((s,r)=>s+toNumber(getField(r,'female')),0);
+    const male   = d.reduce((s,r)=>s+toNumber(getField(r,'male')),0);
+    if (!female && !male) { emptyChart(id, 'No gender data'); return; }
+    showCanvas(id);
+    CHARTS[id] = new Chart(document.getElementById(id), {
+      type: 'doughnut',
+      data: {
+        labels: ['Female','Male'],
+        datasets: [{ data: [female, male], backgroundColor: ['#ec4899','#3b82f6'], borderWidth: 2, borderColor: '#fff' }],
+      },
+      options: { plugins: { legend: { position: 'bottom' } }, cutout: '60%' },
+    });
+  })();
+
+  // 4. Beneficiaries by Woreda
+  (function() {
+    const id = 'chart-benef-woreda';
+    destroyChart(id);
+    const raw = topN(sumBy(d, r=>getField(r,'woreda'), r=>toNumber(getField(r,'beneficiaries'))));
+    if (!raw.length || raw.every(x=>x.v===0)) { emptyChart(id, 'No beneficiary data'); return; }
+    showCanvas(id);
+    CHARTS[id] = new Chart(document.getElementById(id), {
+      type: 'bar',
+      data: { labels: raw.map(x=>x.k), datasets: [{ label: 'Beneficiaries', data: raw.map(x=>x.v), backgroundColor: '#8b5cf6', borderRadius: 4 }] },
+      options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } },
+    });
+  })();
+
+  // 5. Committee Establishment
+  (function() {
+    const id = 'chart-committees';
+    destroyChart(id);
+    const committees = [
+      { label: 'CPMC', key: 'cpmc' },
+      { label: 'CPC',  key: 'cpc'  },
+      { label: 'SAuC', key: 'sauc' },
+      { label: 'KDC',  key: 'kdc'  },
+    ];
+    const total = d.length || 1;
+    const vals = committees.map(c => {
+      const cnt = d.filter(r => {
+        const v = normalizeText(getField(r, c.key));
+        return v === 'yes' || v === '1' || v === 'true' || v === 'established';
+      }).length;
+      return (cnt / total * 100).toFixed(1);
+    });
+    if (vals.every(v=>v==='0.0')) { emptyChart(id, 'No committee data'); return; }
+    showCanvas(id);
+    CHARTS[id] = new Chart(document.getElementById(id), {
+      type: 'bar',
+      data: {
+        labels: committees.map(c=>c.label),
+        datasets: [{
+          label: '% Established',
+          data: vals,
+          backgroundColor: ['#10b981','#3b82f6','#8b5cf6','#f59e0b'],
+          borderRadius: 6,
+        }],
+      },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100, ticks: { callback: v => v+'%' } } } },
+    });
+  })();
+
+  // 6. Component Completion Rate
+  (function() {
+    const id = 'chart-completion';
+    destroyChart(id);
+    const compMap = {};
+    d.forEach(r => {
+      const comp = getField(r,'component') || 'Unknown';
+      if (!compMap[comp]) compMap[comp] = { total: 0, completed: 0 };
+      compMap[comp].total++;
+      if (getStatus(r) === 'completed') compMap[comp].completed++;
+    });
+    const entries = Object.entries(compMap).filter(([,v])=>v.total>0)
+      .sort((a,b)=>b[1].total-a[1].total);
+    if (!entries.length) { emptyChart(id, 'No component data'); return; }
+    showCanvas(id);
+    CHARTS[id] = new Chart(document.getElementById(id), {
+      type: 'bar',
+      data: {
+        labels: entries.map(([k])=>k),
+        datasets: [{
+          label: 'Completion %',
+          data: entries.map(([,v])=>+(v.completed/v.total*100).toFixed(1)),
+          backgroundColor: '#0a7c3a',
+          borderRadius: 6,
+        }],
+      },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100, ticks: { callback: v => v+'%' } } } },
+    });
+  })();
+}
+
+/* ═══════════════════════════════════════════════════
+   MAP
+═══════════════════════════════════════════════════ */
+const STATUS_COLORS = {
+  completed: '#10b981',
+  ongoing:   '#f59e0b',
+  suspended: '#ef4444',
+  unknown:   '#9ca3af',
+};
+
+function getStatusColor(record) {
+  return STATUS_COLORS[getStatus(record)] || STATUS_COLORS.unknown;
+}
+
+function makeMarkerIcon(color) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:14px;height:14px;background:${color};border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+    popupAnchor: [0, -10],
+  });
+}
+
+function renderMap() {
+  if (!MAP_INSTANCE) {
+    MAP_INSTANCE = L.map('map').setView([6.0, 44.0], 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 18,
+    }).addTo(MAP_INSTANCE);
+
+    // Legend
+    const legend = L.control({ position: 'bottomright' });
+    legend.onAdd = function() {
+      const div = L.DomUtil.create('div', 'map-legend');
+      div.innerHTML = Object.entries(STATUS_COLORS).map(([s,c]) =>
+        `<div class="map-legend-item"><div class="map-legend-dot" style="background:${c}"></div>${s.charAt(0).toUpperCase()+s.slice(1)}</div>`
+      ).join('');
+      return div;
+    };
+    legend.addTo(MAP_INSTANCE);
+  }
+
+  if (MAP_CLUSTER) {
+    MAP_INSTANCE.removeLayer(MAP_CLUSTER);
+  }
+
+  MAP_CLUSTER = L.markerClusterGroup({ maxClusterRadius: 40 });
+  const cfg = getConfig();
+
+  FILTERED_DATA.forEach(record => {
+    const geo = getGeo(record);
+    if (!geo) return;
+
+    const color   = getStatusColor(record);
+    const name    = getField(record,'name')    || '—';
+    const woreda  = getField(record,'woreda')  || '—';
+    const kebele  = getField(record,'kebele')  || '—';
+    const comp    = getField(record,'component') || '—';
+    const wtype   = getField(record,'worktype') || '—';
+    const status  = getStatus(record);
+    const benef   = toNumber(getField(record,'beneficiaries'));
+
+    const photos  = getPhotos(record);
+    let photoHtml = '';
+    if (photos.length) {
+      const proxyBase = cfg.proxyBase.replace(/\/$/, '');
+      const mediaUrl = `${proxyBase}/api/kobo-media?url=${encodeURIComponent(photos[0].url)}`;
+      photoHtml = `<img src="${mediaUrl}" alt="photo" style="width:100%;max-height:100px;object-fit:cover;border-radius:6px;margin-bottom:6px" loading="lazy" onerror="this.style.display='none'" />`;
+    }
+
+    const statusClass = 'status-' + (status === 'unknown' ? 'unknown' : status);
+    const popup = `
+      <div style="font-family:Manrope,sans-serif;min-width:200px;max-width:260px;font-size:13px">
+        ${photoHtml}
+        <div style="font-weight:700;margin-bottom:4px">${name}</div>
+        <div style="color:#6b7280;margin-bottom:6px">${woreda} › ${kebele}</div>
+        <div style="margin-bottom:2px"><strong>Component:</strong> ${comp}</div>
+        <div style="margin-bottom:2px"><strong>Work Type:</strong> ${wtype}</div>
+        <div style="margin-bottom:6px"><span class="status-badge ${statusClass}">${status}</span></div>
+        ${benef ? `<div style="font-size:12px;color:#6b7280">Beneficiaries: <strong>${formatNumber(benef)}</strong></div>` : ''}
+      </div>`;
+
+    const marker = L.marker([geo.lat, geo.lng], { icon: makeMarkerIcon(color) });
+    marker.bindPopup(popup, { maxWidth: 280 });
+    MAP_CLUSTER.addLayer(marker);
+  });
+
+  MAP_INSTANCE.addLayer(MAP_CLUSTER);
+  setTimeout(() => MAP_INSTANCE.invalidateSize(), 100);
+}
+
+/* ═══════════════════════════════════════════════════
+   PHOTOS
+═══════════════════════════════════════════════════ */
+function buildPhotoItems() {
+  const items = [];
+  FILTERED_DATA.forEach(record => {
+    const photos = getPhotos(record);
+    if (!photos.length) return;
+    photos.forEach(p => {
+      items.push({
+        url:       p.url,
+        name:      getField(record,'name')      || '—',
+        kebele:    getField(record,'kebele')     || '',
+        woreda:    getField(record,'woreda')     || '',
+        component: getField(record,'component') || '',
+      });
+    });
+  });
+  return items;
+}
+
+let ALL_PHOTO_ITEMS = [];
+
+function renderPhotos() {
+  const grid   = document.getElementById('photos-grid');
+  const empty  = document.getElementById('photos-empty');
+  const btnMore= document.getElementById('photos-load-more');
+
+  ALL_PHOTO_ITEMS = buildPhotoItems();
+  PHOTOS_SHOWN = 24;
+
+  if (!ALL_PHOTO_ITEMS.length) {
+    grid.innerHTML = '';
+    empty.style.display = '';
+    btnMore.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  renderPhotoSlice();
+}
+
+function renderPhotoSlice() {
+  const grid    = document.getElementById('photos-grid');
+  const btnMore = document.getElementById('photos-load-more');
+  const slice   = ALL_PHOTO_ITEMS.slice(0, PHOTOS_SHOWN);
+  const cfg     = getConfig();
+  const proxyBase = cfg.proxyBase.replace(/\/$/, '');
+
+  grid.innerHTML = slice.map((item, i) => {
+    const mediaUrl = `${proxyBase}/api/kobo-media?url=${encodeURIComponent(item.url)}`;
+    return `
+      <div class="photo-card" onclick="openLightbox(${i})" role="button" tabindex="0" aria-label="Open photo ${i+1}">
+        <div class="photo-img-wrap">
+          <img src="${mediaUrl}" alt="${item.name}" loading="lazy"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+               style="border-radius:0" />
+          <div class="photo-placeholder" style="display:none">📷</div>
+        </div>
+        <div class="photo-info">
+          <div class="photo-name">${item.name}</div>
+          <div class="photo-meta">${item.kebele}${item.kebele&&item.woreda?' / ':''}${item.woreda}</div>
+          ${item.component ? `<span class="photo-badge">${item.component}</span>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  // Keyboard support for photo cards
+  grid.querySelectorAll('.photo-card').forEach((card, i) => {
+    card.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') openLightbox(i); });
+  });
+
+  btnMore.style.display = PHOTOS_SHOWN < ALL_PHOTO_ITEMS.length ? '' : 'none';
+}
+
+function loadMorePhotos() {
+  PHOTOS_SHOWN += 24;
+  renderPhotoSlice();
+}
+
+/* ═══════════════════════════════════════════════════
+   LIGHTBOX
+═══════════════════════════════════════════════════ */
+function openLightbox(index) {
+  LB_PHOTOS = ALL_PHOTO_ITEMS;
+  LB_INDEX  = index;
+  showLightboxPhoto();
+  document.getElementById('lightbox').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function showLightboxPhoto() {
+  if (!LB_PHOTOS.length) return;
+  const item = LB_PHOTOS[LB_INDEX];
+  const cfg = getConfig();
+  const proxyBase = cfg.proxyBase.replace(/\/$/, '');
+  const mediaUrl = `${proxyBase}/api/kobo-media?url=${encodeURIComponent(item.url)}`;
+  document.getElementById('lb-img').src = mediaUrl;
+  document.getElementById('lb-caption').textContent = `${item.name} — ${item.kebele||''}${item.kebele&&item.woreda?' / ':''}${item.woreda||''} (${LB_INDEX+1} / ${LB_PHOTOS.length})`;
+}
+
+function prevPhoto() {
+  LB_INDEX = (LB_INDEX - 1 + LB_PHOTOS.length) % LB_PHOTOS.length;
+  showLightboxPhoto();
+}
+
+function nextPhoto() {
+  LB_INDEX = (LB_INDEX + 1) % LB_PHOTOS.length;
+  showLightboxPhoto();
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', e => {
+  if (document.getElementById('lightbox').classList.contains('hidden')) return;
+  if (e.key === 'Escape')     closeLightbox();
+  if (e.key === 'ArrowLeft')  prevPhoto();
+  if (e.key === 'ArrowRight') nextPhoto();
+});
+
+/* ═══════════════════════════════════════════════════
+   DATA TABLE
+═══════════════════════════════════════════════════ */
+function getTableRows() {
+  const search = normalizeText(document.getElementById('table-search').value);
+  let rows = FILTERED_DATA.map((r, i) => ({
+    idx: i + 1,
+    date:    getField(r,'submitted') || '',
+    woreda:  getField(r,'woreda')    || '',
+    kebele:  getField(r,'kebele')    || '',
+    comp:    getField(r,'component')    || '',
+    subcomp: getField(r,'subcomponent') || '',
+    wtype:   getField(r,'worktype')  || '',
+    status:  getField(r,'status')    || '',
+    benef:   toNumber(getField(r,'beneficiaries')),
+    _raw: r,
+  }));
+
+  if (search) {
+    rows = rows.filter(r =>
+      normalizeText(Object.values(r).filter(v=>typeof v==='string').join(' ')).includes(search)
+    );
+  }
+
+  // Sort
+  const colKeys = ['idx','date','woreda','kebele','comp','subcomp','wtype','status','benef'];
+  const key = colKeys[TABLE_SORT_COL];
+  rows.sort((a,b) => {
+    const av = a[key]; const bv = b[key];
+    if (typeof av === 'number') return TABLE_SORT_ASC ? av-bv : bv-av;
+    const as = String(av||'').toLowerCase();
+    const bs = String(bv||'').toLowerCase();
+    return TABLE_SORT_ASC ? as.localeCompare(bs) : bs.localeCompare(as);
+  });
+
+  return rows;
+}
+
+function renderTable() {
+  const rows = getTableRows();
+  const total = rows.length;
+  const start = (TABLE_PAGE - 1) * TABLE_PAGE_SIZE;
+  const page  = rows.slice(start, start + TABLE_PAGE_SIZE);
+
+  const tbody = document.getElementById('table-body');
+  if (!page.length) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-light)">No records match</td></tr>`;
+  } else {
+    tbody.innerHTML = page.map(r => {
+      const s = getStatus(r._raw);
+      const sc = 'status-' + (s === 'unknown' ? 'unknown' : s);
+      return `<tr>
+        <td style="font-family:var(--mono);color:var(--text-light)">${r.idx}</td>
+        <td style="white-space:nowrap">${formatDate(r.date)}</td>
+        <td>${r.woreda}</td>
+        <td>${r.kebele}</td>
+        <td>${r.comp}</td>
+        <td>${r.subcomp}</td>
+        <td>${r.wtype}</td>
+        <td><span class="status-badge ${sc}">${r.status||'—'}</span></td>
+        <td style="font-family:var(--mono);text-align:right">${r.benef ? formatNumber(r.benef) : '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  renderPagination(total);
+  updateSortHeaders();
+}
+
+function renderPagination(total) {
+  const pages = Math.ceil(total / TABLE_PAGE_SIZE);
+  const pg = document.getElementById('table-pagination');
+  if (pages <= 1) { pg.innerHTML = `<span>${total} record${total!==1?'s':''}</span>`; return; }
+
+  let html = `<span>${total} records</span>`;
+  html += `<button class="pagination-btn" onclick="goPage(${TABLE_PAGE-1})" ${TABLE_PAGE===1?'disabled':''}>‹</button>`;
+
+  // Show limited page buttons
+  const range = 3;
+  for (let i = 1; i <= pages; i++) {
+    if (i === 1 || i === pages || (i >= TABLE_PAGE - range && i <= TABLE_PAGE + range)) {
+      html += `<button class="pagination-btn ${i===TABLE_PAGE?'active':''}" onclick="goPage(${i})">${i}</button>`;
+    } else if (i === TABLE_PAGE - range - 1 || i === TABLE_PAGE + range + 1) {
+      html += `<span style="padding:0 4px">…</span>`;
+    }
+  }
+  html += `<button class="pagination-btn" onclick="goPage(${TABLE_PAGE+1})" ${TABLE_PAGE===pages?'disabled':''}>›</button>`;
+  pg.innerHTML = html;
+}
+
+function goPage(n) {
+  const rows = getTableRows();
+  const pages = Math.ceil(rows.length / TABLE_PAGE_SIZE);
+  TABLE_PAGE = Math.max(1, Math.min(n, pages));
+  renderTable();
+}
+
+function sortTable(col) {
+  if (TABLE_SORT_COL === col) TABLE_SORT_ASC = !TABLE_SORT_ASC;
+  else { TABLE_SORT_COL = col; TABLE_SORT_ASC = true; }
+  TABLE_PAGE = 1;
+  renderTable();
+}
+
+function updateSortHeaders() {
+  document.querySelectorAll('#data-table thead th').forEach((th, i) => {
+    th.classList.toggle('sorted', i === TABLE_SORT_COL);
+    const icon = th.querySelector('.sort-icon');
+    if (icon) icon.textContent = i === TABLE_SORT_COL ? (TABLE_SORT_ASC ? '↑' : '↓') : '↕';
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   EXPORT
+═══════════════════════════════════════════════════ */
+function dateStr() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function exportCSV() {
+  const headers = ['ID','Date','Woreda','Kebele','Component','Sub-Component','Work Type','Status','Beneficiaries','Female','Male','Host','Refugee'];
+  const rows = FILTERED_DATA.map(r => [
+    getField(r,'id'),
+    getField(r,'submitted'),
+    getField(r,'woreda'),
+    getField(r,'kebele'),
+    getField(r,'component'),
+    getField(r,'subcomponent'),
+    getField(r,'worktype'),
+    getField(r,'status'),
+    toNumber(getField(r,'beneficiaries')),
+    toNumber(getField(r,'female')),
+    toNumber(getField(r,'male')),
+    toNumber(getField(r,'host')),
+    toNumber(getField(r,'refugee')),
+  ].map(v => `"${String(v||'').replace(/"/g,'""')}"`));
+
+  const csv = [headers.join(','), ...rows.map(r=>r.join(','))].join('\n');
+  downloadFile(`DRDIP-II-Somali-${dateStr()}.csv`, csv, 'text/csv');
+  showToast(`Exported ${FILTERED_DATA.length} records as CSV`, 'success');
+}
+
+function exportJSON() {
+  const data = FILTERED_DATA.map(r => ({
+    id:           getField(r,'id'),
+    submitted:    getField(r,'submitted'),
+    woreda:       getField(r,'woreda'),
+    kebele:       getField(r,'kebele'),
+    component:    getField(r,'component'),
+    subcomponent: getField(r,'subcomponent'),
+    worktype:     getField(r,'worktype'),
+    status:       getField(r,'status'),
+    beneficiaries:toNumber(getField(r,'beneficiaries')),
+    female:       toNumber(getField(r,'female')),
+    male:         toNumber(getField(r,'male')),
+    host:         toNumber(getField(r,'host')),
+    refugee:      toNumber(getField(r,'refugee')),
+  }));
+  downloadFile(`DRDIP-II-Somali-${dateStr()}.json`, JSON.stringify(data, null, 2), 'application/json');
+  showToast(`Exported ${FILTERED_DATA.length} records as JSON`, 'success');
+}
+
+function downloadFile(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ═══════════════════════════════════════════════════
+   TAB SWITCHING
+═══════════════════════════════════════════════════ */
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+  });
+  const panel = document.getElementById('tab-' + name);
+  const btn   = document.getElementById('tab-btn-' + name);
+  if (panel) panel.classList.add('active');
+  if (btn)   { btn.classList.add('active'); btn.setAttribute('aria-selected','true'); }
+
+  // Re-invalidate map size when switching to map tab
+  if (name === 'map' && MAP_INSTANCE) {
+    setTimeout(() => MAP_INSTANCE.invalidateSize(), 150);
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════ */
+(function init() {
+  const cfg = getConfig();
+  if (!cfg.token) {
+    hideLoading();
+    openSettings();
+  } else {
+    loadData();
+  }
+
+  // Initial filter summary placeholder
+  document.getElementById('filter-summary').innerHTML = 'Load data to see records';
+  document.getElementById('sb-filtered').textContent = '—';
+})();
+</script>
+</body>
+</html>
