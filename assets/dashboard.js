@@ -1,18 +1,486 @@
-const R='Somali Region',S={raw:[],records:[],filtered:[],targets:null,charts:{},map:null,markers:null};
-const A={region:['group_0/region','region','Region'],woreda:['group_0/woreda','woreda','Woreda','district','city'],kebele:['group_0/kebele','kebele','Kebele'],sub:['group_0/Q1a','Project sub-component','subcomponent','Sub-component'],type:['group_0/Q1b','Sub project or Investment Type','investment_type'],name:['group_1/sbp_name','Local name of the sub-project','subproject_name'],desc:['group_1/sbp_descr','Sub-project description','description'],status:['group_3/impl_status','Status of the sub-project/investment implementation','status'],ben:['group_4/group_hostcomm/host_total','beneficiaries','Total beneficiaries','total_beneficiaries'],host:['group_4/group_hostcomm/host_total','host','Host beneficiaries'],ref:['group_13/tc_002','refugee','Refugee beneficiaries'],male:['group_4/group_hostcomm/host_male','group_12/gain_male_hc','group_13/gain_male_ref','male'],female:['group_4/group_hostcomm/host_female','group_12/gain_female_hc','group_13/gain_female_ref','female'],gps:['gps_point','gps','_geolocation'],lat:['latitude','_geolocation_latitude'],lon:['longitude','_geolocation_longitude'],submitted:['_submission_time','submission_time','submitted'],validation:['_validation_status','validation_status']};
-const M=[['beneficiaries_total','PDO / Component 1.1','Beneficiaries with access to social and economic services and infrastructure','Number','beneficiaries','Sum of Kobo beneficiary fields'],['beneficiaries_host','PDO / Component 1.1','Host community beneficiaries with access to services','Number','host','Sum of host beneficiary field'],['beneficiaries_refugee','PDO / Component 1.1','Refugee community beneficiaries with access to services','Number','refugee','Sum of refugee beneficiary field'],['slm_physical_ha','2.1 Community-based NRM','Land area under SLM practices, physical','Hectare','slm','Record count proxy until hectare field is mapped'],['slm_biological_ha','2.1 Community-based NRM','Land area under SLM practices, biological','Hectare','slm','Record count proxy until hectare field is mapped'],['cif_completed','1.1 Infrastructure and basic services','CIF subprojects completed and operational','Number','cif','Completed CIF records'],['sif_completed','1.1 Infrastructure and basic services','SIF subprojects completed and operational','Number','sif','Completed SIF records'],['energy_demo_households','2.2 Alternative energy','Households with improved alternative energy demonstration','Number','energy','Energy record proxy'],['energy_self_adopt_households','2.2 Alternative energy','Households adopting alternative energy with own resources','Number','energy','Energy record proxy'],['cbo_operational','3.2 Livelihoods / CBO support','CBOs operational one year after support','Number','cbo','CBO record proxy'],['traditional_livelihood_beneficiaries','3.1 Traditional livelihoods','Traditional livelihood beneficiaries','Number','livelihoodBen','Matched livelihood beneficiaries'],['nontraditional_livelihood_beneficiaries','3.2 Non-traditional livelihoods','Non-traditional livelihood beneficiaries','Number','livelihoodBen','Matched livelihood beneficiaries'],['irrigation_beneficiaries','3.3 Small-scale and micro-irrigation','Irrigation beneficiaries','Number','irrigationBen','Matched irrigation beneficiaries'],['farmers_adopting_technologies','3.1 Traditional livelihoods','Farmers adopting improved technologies','Number','livelihoodBen','Matched livelihood beneficiaries'],['irrigation_area_ha','3.3 Small-scale and micro-irrigation','New or improved irrigation area','Hectare','irrigation','Record count proxy until hectare field is mapped'],['female_members_percent','1.3 Inclusion','Female members in community institutions','Percentage','femaleShare','Calculated from male/female beneficiary fields'],['women_leadership_percent','1.3 Inclusion','Women in leadership roles','Percentage','none','No matching Kobo field mapped']];
-const $=id=>document.getElementById(id),c=v=>v==null?'':String(v).trim(),l=v=>c(v).toLowerCase(),n=v=>{if(typeof v==='number')return v;const x=Number(c(v).replace(/,/g,''));return Number.isFinite(x)?x:0},f=v=>Number(v||0).toLocaleString(),tc=v=>c(v).replace(/_/g,' ').replace(/\s+/g,' ').replace(/\b\w/g,x=>x.toUpperCase()),h=v=>c(v).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x]));
-function gf(o,k){for(const p of A[k]||[])if(Object.hasOwn(o,p)&&c(o[p]))return o[p];return''}function g(o){let x=gf(o,'gps');if(Array.isArray(x)&&x.length>1)return{lat:n(x[0]),lon:n(x[1])};if(typeof x==='string'){let p=x.split(/[ ,]+/).map(n).filter(Boolean);if(p.length>1)return{lat:p[0],lon:p[1]}}return{lat:n(gf(o,'lat')),lon:n(gf(o,'lon'))}}function som(o){let r=l(gf(o,'region'));if(r.includes('somali')||r.includes('somale'))return true;let w=l(gf(o,'woreda'));return['awbare','kebribeyah','kebribayah','dollo','dolo','bokolmayo','bokulmayo','dollo bay','jigjiga','jijiga','danot','bokh'].some(x=>w.includes(x))}
-function norm(o,i){let p=g(o),male=n(gf(o,'male')),female=n(gf(o,'female')),host=n(gf(o,'host')),refugee=n(gf(o,'ref')),ben=n(gf(o,'ben'))||male+female||host+refugee;return{index:i,raw:o,woreda:tc(gf(o,'woreda'))||'Unspecified',kebele:tc(gf(o,'kebele')),sub:tc(gf(o,'sub')),type:tc(gf(o,'type')),name:tc(gf(o,'name')),desc:c(gf(o,'desc')),status:stat(gf(o,'status')),beneficiaries:ben,host,refugee,male,female,lat:p.lat,lon:p.lon,hasGps:!!(p.lat&&p.lon),hasPhotos:Array.isArray(o._attachments)&&o._attachments.some(a=>c(a.mimetype).startsWith('image/')),submitted:c(gf(o,'submitted')),validation:c(gf(o,'validation'))}}function stat(v){let x=l(v);if(!x)return'';if(x.includes('complete'))return'Completed';if(x.includes('ongoing')||x.includes('progress'))return'Ongoing';if(x.includes('delay')||x.includes('problem'))return'Delayed or Problem';return tc(v)}
-function gb(a,k){return a.reduce((o,r)=>{let v=typeof k==='function'?k(r):r[k]||'Unspecified';(o[v]??=[]).push(r);return o},{})}function sm(a,k){return a.reduce((s,r)=>s+n(r[k]),0)}function cb(a,k){return Object.entries(gb(a,k)).map(([name,rows])=>({name,value:rows.length,rows})).sort((a,b)=>b.value-a.value)}function txt(r){return l([r.sub,r.type,r.name,r.desc].join(' '))}function m(r,w){return txt(r).includes(w)}function ok(r){return r.status==='Completed'}
-function actuals(){let r=S.filtered,male=sm(r,'male'),female=sm(r,'female');return{beneficiaries:sm(r,'beneficiaries'),host:sm(r,'host'),refugee:sm(r,'refugee'),slm:r.filter(x=>m(x,'2.1')||m(x,'natural')||m(x,'landscape')||m(x,'watershed')).length,cif:r.filter(x=>(m(x,'cif')||m(x,'community investment'))&&ok(x)).length,sif:r.filter(x=>(m(x,'sif')||m(x,'strategic investment'))&&ok(x)).length,energy:r.filter(x=>m(x,'2.2')||m(x,'energy')||m(x,'solar')).length,cbo:r.filter(x=>m(x,'cbo')||m(x,'cooperative')||m(x,'russaco')).length,livelihoodBen:sm(r.filter(x=>m(x,'3.1')||m(x,'3.2')||m(x,'livelihood')),'beneficiaries'),irrigationBen:sm(r.filter(x=>m(x,'3.3')||m(x,'irrigation')),'beneficiaries'),irrigation:r.filter(x=>m(x,'3.3')||m(x,'irrigation')).length,femaleShare:(male+female)?Math.round(female/(male+female)*100):0,none:0}}
-function rows(){let t=S.targets?.targets||{},a=actuals();return M.map(([code,sub,indicator,unit,key,source])=>{let target=n(t[code]),actual=n(a[key]),percent=target?Math.round(actual/target*100):0;return{code,sub,indicator,unit,target,actual,percent,gap:Math.max(target-actual,0),source}})}function alloc(){let units=S.targets?.woreda_city_intervention_areas||[],tt=S.targets?.targets||{},total=units.reduce((s,u)=>s+n(u.total),0),by=gb(S.filtered,'woreda');return units.map(u=>{let share=total?n(u.total)/total:0,rr=by[u.woreda_city]||by[u.woreda_city.replace(' Woreda','')]||[],target=Math.round(n(tt.beneficiaries_total)*share),col=sm(rr,'beneficiaries');return{u,share,target,col,ach:target?Math.round(col/target*100):0,cif:Math.round(n(tt.cif_completed)*share),sif:Math.round(n(tt.sif_completed)*share),slm:Math.round((n(tt.slm_physical_ha)+n(tt.slm_biological_ha))*share),energy:Math.round(n(tt.energy_demo_households)*share),livelihood:Math.round((n(tt.traditional_livelihood_beneficiaries)+n(tt.nontraditional_livelihood_beneficiaries))*share),irrigation:Math.round(n(tt.irrigation_area_ha)*share)}})}
-function drawTargets(){let tr=rows(),t=S.targets?.targets||{},col=sm(S.filtered,'beneficiaries'),target=n(t.beneficiaries_total),gap=Math.max(target-col,0);$('target-source').textContent=S.targets?.source||'Target baseline';$('target-note').textContent=S.targets?.note||'';$('target-kpis').innerHTML=kpis([['Beneficiary target',f(target),'Official Somali Region target'],['Collected beneficiaries',f(col),'Filtered Kobo records'],['Achievement',target?Math.round(col/target*100)+'%':'0%',f(gap)+' remaining'],['Collected records',f(S.filtered.length),'Kobo submissions'],['Target year','Year 5','PDO and intermediate targets']]);$('target-table-body').innerHTML=tr.map(r=>`<tr><td>${h(r.sub)}</td><td>${h(r.indicator)}</td><td>${h(r.unit)}</td><td>${f(r.target)}</td><td>${f(r.actual)}</td><td>${prog(r.percent)}</td><td>${f(r.gap)}</td><td>${h(r.source)}</td></tr>`).join('');$('woreda-target-body').innerHTML=alloc().map(x=>`<tr><td>${h(x.u.woreda_city)}</td><td>${h(x.u.zone)}</td><td>${Math.round(x.share*100)}%</td><td>${f(x.target)}</td><td>${f(x.col)}</td><td>${prog(x.ach)}</td><td>${f(x.cif)}</td><td>${f(x.sif)}</td><td>${f(x.slm)}</td><td>${f(x.energy)}</td><td>${f(x.livelihood)}</td><td>${f(x.irrigation)}</td><td>${h(x.u.note||'Planning allocation')}</td></tr>`).join('');chart('chart-target-achievement','bar',tr.slice(0,12).map(x=>x.indicator.slice(0,32)),tr.slice(0,12).map(x=>x.percent),'Achievement %',100);let ar=alloc();chart('chart-woreda-targets','bar',ar.map(x=>x.u.woreda_city),ar.map(x=>x.ach),'Beneficiary achievement %',100)}
-function kpis(a){return a.map(x=>`<div class="card kpi-card"><div class="kpi-label">${h(x[0])}</div><div class="kpi-value">${h(x[1])}</div><div class="kpi-sub">${h(x[2])}</div></div>`).join('')}function prog(p){return`<strong>${p}%</strong><div class="progress"><span style="width:${Math.min(p,100)}%"></span></div>`}
-function render(){drawTargets();let r=S.filtered,c=r.filter(ok).length;$('hdr-live').textContent=f(S.records.length);$('hdr-filtered').textContent=f(r.length);$('kpi-grid').innerHTML=kpis([['Records',f(r.length),'Filtered records'],['Woreda/City',f(new Set(r.map(x=>x.woreda)).size),'Reported units'],['Kebeles',f(new Set(r.map(x=>x.kebele).filter(Boolean)).size),'Reported kebeles'],['Beneficiaries',f(sm(r,'beneficiaries')),'Collected'],['Completed',r.length?Math.round(c/r.length*100)+'%':'0%',f(c)+' completed']]);let s=cb(r,'status');chart('chart-status','doughnut',s.map(x=>x.name),s.map(x=>x.value));let sub=cb(r,'sub').slice(0,15);chart('chart-subcomponent','bar',sub.map(x=>x.name),sub.map(x=>x.value));$('latest-body').innerHTML=[...r].sort((a,b)=>c(b.submitted).localeCompare(c(a.submitted))).slice(0,12).map(x=>`<tr><td>${h((x.submitted||'').slice(0,10))}</td><td>${h(x.woreda)}</td><td>${h(x.kebele)}</td><td>${h(x.name||x.type)}</td><td>${badge(x.status)}</td><td>${f(x.beneficiaries)}</td></tr>`).join('')||'<tr><td colspan="6">No records</td></tr>';let wr=cb(r,'woreda').slice(0,20);chart('chart-woreda-records','bar',wr.map(x=>x.name),wr.map(x=>x.value));let wb=Object.entries(gb(r,'woreda')).map(([name,rows])=>({name,value:sm(rows,'beneficiaries'),rows})).sort((a,b)=>b.value-a.value).slice(0,20);chart('chart-woreda-beneficiaries','bar',wb.map(x=>x.name),wb.map(x=>x.value),'Beneficiaries');$('woreda-rank-body').innerHTML=Object.entries(gb(r,'woreda')).map(([w,rr])=>`<tr><td>${h(w)}</td><td>${f(rr.length)}</td><td>${f(new Set(rr.map(x=>x.kebele).filter(Boolean)).size)}</td><td>${f(sm(rr,'beneficiaries'))}</td><td>${rr.length?Math.round(rr.filter(ok).length/rr.length*100):0}%</td><td>${rr.length?Math.round(rr.filter(x=>x.hasGps).length/rr.length*100):0}%</td><td>${rr.length?Math.round(rr.filter(x=>x.hasPhotos).length/rr.length*100):0}%</td></tr>`).join('');$('table-body').innerHTML=r.map(x=>`<tr><td>${h(x.woreda)}</td><td>${h(x.kebele)}</td><td>${h(x.name||x.desc)}</td><td>${h(x.sub)}</td><td>${h(x.type)}</td><td>${badge(x.status)}</td><td>${f(x.beneficiaries)}</td><td>${h((x.submitted||'').slice(0,10))}</td></tr>`).join('');$('quality-kpis').innerHTML=[['Missing kebele',r.filter(x=>!x.kebele).length],['Missing status',r.filter(x=>!x.status).length],['Missing beneficiaries',r.filter(x=>!x.beneficiaries).length],['Missing GPS',r.filter(x=>!x.hasGps).length],['Missing photos',r.filter(x=>!x.hasPhotos).length]].map(x=>`<div class="quality-item"><span>${x[0]}</span><strong>${f(x[1])}</strong></div>`).join('');$('quality-body').innerHTML=Object.entries(gb(r,'woreda')).map(([w,rr])=>`<tr><td>${h(w)}</td><td>${f(rr.length)}</td><td>${rr.filter(x=>!x.kebele).length}</td><td>${rr.filter(x=>!x.status).length}</td><td>${rr.filter(x=>!x.beneficiaries).length}</td><td>${rr.filter(x=>!x.hasGps).length}</td><td>${rr.filter(x=>!x.hasPhotos).length}</td></tr>`).join('');$('normalized-json').textContent=JSON.stringify(r.slice(0,200),null,2);map()}
-function badge(s){let z=s==='Completed'?'completed':s==='Ongoing'?'ongoing':l(s).includes('delay')?'problem':'';return`<span class="badge ${z}">${h(s||'Unknown')}</span>`}function chart(id,type,labels,data,label='Records',max){if(!window.Chart||!$(id))return;if(S.charts[id])S.charts[id].destroy();let opt={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:type==='doughnut'}},scales:type==='bar'?{y:{beginAtZero:true}}:{}};if(max)opt.scales.y.max=max;S.charts[id]=new Chart($(id),{type,data:{labels,datasets:[{label,data}]},options:opt})}
-function map(){if(!window.L||!$('map'))return;let r=S.filtered.filter(x=>x.hasGps);$('map-count').textContent=f(r.length)+' mapped records';$('map-missing').textContent=f(S.filtered.length-r.length)+' missing GPS';if(!S.map){S.map=L.map('map').setView([6.7,44.2],7);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(S.map);S.markers=L.layerGroup().addTo(S.map)}S.markers.clearLayers();r.forEach(x=>L.marker([x.lat,x.lon]).bindPopup(`<b>${h(x.woreda)}</b><br>${h(x.kebele)}<br>${h(x.name||x.type)}`).addTo(S.markers));if(r.length)S.map.fitBounds(L.latLngBounds(r.map(x=>[x.lat,x.lon])),{padding:[24,24]})}
-function filters(){let get=id=>c($(id)?.value),q=l(get('filter-search'));S.filtered=S.records.filter(r=>(!get('filter-woreda')||r.woreda===get('filter-woreda'))&&(!get('filter-kebele')||r.kebele===get('filter-kebele'))&&(!get('filter-subcomponent')||r.sub===get('filter-subcomponent'))&&(!get('filter-type')||r.type===get('filter-type'))&&(!get('filter-status')||r.status===get('filter-status'))&&(!get('filter-date-from')||!r.submitted||r.submitted.slice(0,10)>=get('filter-date-from'))&&(!get('filter-date-to')||!r.submitted||r.submitted.slice(0,10)<=get('filter-date-to'))&&(!q||l([r.woreda,r.kebele,r.sub,r.type,r.name,r.desc,r.status].join(' ')).includes(q)));render()}
-function fill(id,vals,label){let e=$(id),old=e.value;e.innerHTML=`<option value="">${label}</option>`+[...new Set(vals.filter(Boolean))].sort().map(x=>`<option>${h(x)}</option>`).join('');if(vals.includes(old))e.value=old}function setup(){document.querySelectorAll('.tab-btn').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(`tab-${b.dataset.tab}`).classList.add('active');setTimeout(()=>S.map&&S.map.invalidateSize(),100)});['filter-woreda','filter-kebele','filter-subcomponent','filter-type','filter-status','filter-date-from','filter-date-to','filter-search'].forEach(id=>$(id).oninput=filters);$('reset-filters').onclick=()=>{document.querySelectorAll('.filters-grid select:not(.locked-select),.filters-grid input').forEach(x=>x.value='');filters()};$('refresh-btn').onclick=load;$('export-targets').onclick=()=>download('somali-region-target-vs-collected.csv',csv(rows()));$('export-csv').onclick=()=>download('somali-region-filtered-records.csv',csv(S.filtered.map(x=>({woreda:x.woreda,kebele:x.kebele,subcomponent:x.sub,type:x.type,name:x.name,status:x.status,beneficiaries:x.beneficiaries,submitted:x.submitted}))));$('export-json').onclick=()=>download('somali-region-filtered-records.json',JSON.stringify(S.filtered,null,2));$('settings-btn').onclick=()=>{$('setting-asset').value=localStorage.assetUid||'';$('setting-server').value=localStorage.koboServer||'';$('setting-proxy').value=localStorage.proxyBase||'';$('settings-modal').classList.remove('hidden')};$('settings-close').onclick=()=>$('settings-modal').classList.add('hidden');$('settings-save').onclick=()=>{localStorage.assetUid=$('setting-asset').value;localStorage.koboServer=$('setting-server').value;localStorage.proxyBase=$('setting-proxy').value;$('settings-modal').classList.add('hidden');load()}}
-function csv(a){if(!a.length)return'';let cols=Object.keys(a[0]);return[cols.join(','),...a.map(r=>cols.map(k=>`"${c(r[k]).replace(/"/g,'""')}"`).join(','))].join('\n')}function download(name,text){let b=new Blob([text],{type:'text/plain'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();URL.revokeObjectURL(a.href)}function base(){return c(localStorage.proxyBase)||location.origin}
-async function load(){show('Loading Somali Region targets and Kobo records...');try{S.targets=await(await fetch('data/plan-targets-summary.json',{cache:'no-store'})).json();let qs=new URLSearchParams();if(c(localStorage.assetUid))qs.set('asset',localStorage.assetUid);if(c(localStorage.koboServer))qs.set('server',localStorage.koboServer);let res=await fetch(`${base()}/api/kobo-proxy${qs.toString()?'?'+qs:''}`);if(!res.ok)throw new Error(await res.text());let data=await res.json();S.raw=Array.isArray(data.results)?data.results:[];S.records=S.raw.filter(som).map(norm);$('hdr-synced').textContent=new Date(data.fetchedAt||Date.now()).toLocaleString();hide();fill('filter-woreda',S.records.map(x=>x.woreda),'All Woreda/City');fill('filter-kebele',S.records.map(x=>x.kebele),'All Kebeles');fill('filter-subcomponent',S.records.map(x=>x.sub),'All Sub-components');fill('filter-type',S.records.map(x=>x.type),'All Types');fill('filter-status',S.records.map(x=>x.status),'All Statuses');filters()}catch(e){show('Failed to load dashboard: '+e.message,true);S.filtered=[];render()}}function show(m,err=false){let a=$('alert');a.textContent=m;a.className=err?'alert error':'alert';a.classList.remove('hidden')}function hide(){$('alert').classList.add('hidden')}document.addEventListener('DOMContentLoaded',()=>{setup();load()});
+const SOMALI_REGION = 'Somali Region';
+
+const state = {
+  raw: [],
+  records: [],
+  filtered: [],
+  targets: null,
+  charts: {},
+  map: null,
+  markers: null
+};
+
+const aliases = {
+  region: ['group_0/region', 'region', 'Region'],
+  woreda: ['group_0/woreda', 'woreda', 'Woreda', 'district', 'city'],
+  kebele: ['group_0/kebele', 'kebele', 'Kebele'],
+  subcomponent: ['group_0/Q1a', 'Project sub-component', 'subcomponent', 'Sub-component'],
+  type: ['group_0/Q1b', 'Sub project or Investment Type', 'investment_type'],
+  name: ['group_1/sbp_name', 'Local name of the sub-project', 'subproject_name'],
+  description: ['group_1/sbp_descr', 'Sub-project description', 'description'],
+  status: ['group_3/impl_status', 'Status of the sub-project/investment implementation', 'status'],
+  beneficiaries: ['group_4/group_hostcomm/host_total', 'beneficiaries', 'Total beneficiaries', 'total_beneficiaries'],
+  host: ['group_4/group_hostcomm/host_total', 'host', 'Host beneficiaries'],
+  refugee: ['group_13/tc_002', 'refugee', 'Refugee beneficiaries'],
+  male: ['group_4/group_hostcomm/host_male', 'group_12/gain_male_hc', 'group_13/gain_male_ref', 'male'],
+  female: ['group_4/group_hostcomm/host_female', 'group_12/gain_female_hc', 'group_13/gain_female_ref', 'female'],
+  gps: ['gps_point', 'gps', '_geolocation'],
+  latitude: ['latitude', '_geolocation_latitude'],
+  longitude: ['longitude', '_geolocation_longitude'],
+  submitted: ['_submission_time', 'submission_time', 'submitted'],
+  validation: ['_validation_status', 'validation_status']
+};
+
+const targetMap = [
+  ['beneficiaries_total', 'PDO / Component 1.1', 'Beneficiaries with access to social and economic services and infrastructure', 'Number', 'beneficiaries', 'Sum of Kobo beneficiary fields'],
+  ['beneficiaries_host', 'PDO / Component 1.1', 'Host community beneficiaries with access to services', 'Number', 'host', 'Sum of host beneficiary field'],
+  ['beneficiaries_refugee', 'PDO / Component 1.1', 'Refugee community beneficiaries with access to services', 'Number', 'refugee', 'Sum of refugee beneficiary field'],
+  ['slm_physical_ha', '2.1 Community-based NRM', 'Land area under SLM practices, physical', 'Hectare', 'slm', 'Record count proxy until hectare field is mapped'],
+  ['slm_biological_ha', '2.1 Community-based NRM', 'Land area under SLM practices, biological', 'Hectare', 'slm', 'Record count proxy until hectare field is mapped'],
+  ['cif_completed', '1.1 Infrastructure and basic services', 'CIF subprojects completed and operational', 'Number', 'cif', 'Completed CIF records'],
+  ['sif_completed', '1.1 Infrastructure and basic services', 'SIF subprojects completed and operational', 'Number', 'sif', 'Completed SIF records'],
+  ['energy_demo_households', '2.2 Alternative energy', 'Households with improved alternative energy demonstration', 'Number', 'energy', 'Energy record proxy'],
+  ['energy_self_adopt_households', '2.2 Alternative energy', 'Households adopting alternative energy with own resources', 'Number', 'energy', 'Energy record proxy'],
+  ['cbo_operational', '3.2 Livelihoods / CBO support', 'CBOs operational one year after support', 'Number', 'cbo', 'CBO record proxy'],
+  ['traditional_livelihood_beneficiaries', '3.1 Traditional livelihoods', 'Traditional livelihood beneficiaries', 'Number', 'livelihoodBen', 'Matched livelihood beneficiaries'],
+  ['nontraditional_livelihood_beneficiaries', '3.2 Non-traditional livelihoods', 'Non-traditional livelihood beneficiaries', 'Number', 'livelihoodBen', 'Matched livelihood beneficiaries'],
+  ['irrigation_beneficiaries', '3.3 Small-scale and micro-irrigation', 'Irrigation beneficiaries', 'Number', 'irrigationBen', 'Matched irrigation beneficiaries'],
+  ['farmers_adopting_technologies', '3.1 Traditional livelihoods', 'Farmers adopting improved technologies', 'Number', 'livelihoodBen', 'Matched livelihood beneficiaries'],
+  ['irrigation_area_ha', '3.3 Small-scale and micro-irrigation', 'New or improved irrigation area', 'Hectare', 'irrigation', 'Record count proxy until hectare field is mapped'],
+  ['female_members_percent', '1.3 Inclusion', 'Female members in community institutions', 'Percentage', 'femaleShare', 'Calculated from male/female beneficiary fields'],
+  ['women_leadership_percent', '1.3 Inclusion', 'Women in leadership roles', 'Percentage', 'none', 'No matching Kobo field mapped']
+];
+
+const $ = id => document.getElementById(id);
+const clean = value => value == null ? '' : String(value).trim();
+const lower = value => clean(value).toLowerCase();
+const number = value => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const parsed = Number(clean(value).replace(/,/g, ''));
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+const formatNumber = value => Number(value || 0).toLocaleString();
+const escapeHtml = value => clean(value).replace(/[&<>"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
+const titleCase = value => clean(value).replace(/_/g, ' ').replace(/\s+/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+
+function getField(record, key) {
+  for (const path of aliases[key] || []) {
+    if (Object.prototype.hasOwnProperty.call(record, path) && clean(record[path])) return record[path];
+  }
+  return '';
+}
+
+function getGps(record) {
+  const gps = getField(record, 'gps');
+  if (Array.isArray(gps) && gps.length > 1) return { lat: number(gps[0]), lon: number(gps[1]) };
+  if (typeof gps === 'string') {
+    const parts = gps.split(/[ ,]+/).map(number).filter(Boolean);
+    if (parts.length > 1) return { lat: parts[0], lon: parts[1] };
+  }
+  return { lat: number(getField(record, 'latitude')), lon: number(getField(record, 'longitude')) };
+}
+
+function isSomaliRecord(record) {
+  const region = lower(getField(record, 'region'));
+  if (region.includes('somali') || region.includes('somale')) return true;
+  const woreda = lower(getField(record, 'woreda'));
+  return ['awbare', 'kebribeyah', 'kebribayah', 'dollo', 'dolo', 'bokolmayo', 'bokulmayo', 'dollo bay', 'jigjiga', 'jijiga', 'danot', 'bokh'].some(name => woreda.includes(name));
+}
+
+function normalizeStatus(value) {
+  const text = lower(value);
+  if (!text) return '';
+  if (text.includes('complete')) return 'Completed';
+  if (text.includes('ongoing') || text.includes('progress')) return 'Ongoing';
+  if (text.includes('delay') || text.includes('problem')) return 'Delayed or Problem';
+  return titleCase(value);
+}
+
+function normalizeRecord(record, index) {
+  const gps = getGps(record);
+  const male = number(getField(record, 'male'));
+  const female = number(getField(record, 'female'));
+  const host = number(getField(record, 'host'));
+  const refugee = number(getField(record, 'refugee'));
+  const beneficiaries = number(getField(record, 'beneficiaries')) || male + female || host + refugee;
+
+  return {
+    index,
+    raw: record,
+    woreda: titleCase(getField(record, 'woreda')) || 'Unspecified',
+    kebele: titleCase(getField(record, 'kebele')),
+    subcomponent: titleCase(getField(record, 'subcomponent')),
+    type: titleCase(getField(record, 'type')),
+    name: titleCase(getField(record, 'name')),
+    description: clean(getField(record, 'description')),
+    status: normalizeStatus(getField(record, 'status')),
+    beneficiaries,
+    host,
+    refugee,
+    male,
+    female,
+    lat: gps.lat,
+    lon: gps.lon,
+    hasGps: Boolean(gps.lat && gps.lon),
+    hasPhotos: Array.isArray(record._attachments) && record._attachments.some(att => clean(att.mimetype).startsWith('image/')),
+    submitted: clean(getField(record, 'submitted')),
+    validation: clean(getField(record, 'validation'))
+  };
+}
+
+function groupBy(rows, key) {
+  return rows.reduce((out, row) => {
+    const value = typeof key === 'function' ? key(row) : row[key] || 'Unspecified';
+    if (!out[value]) out[value] = [];
+    out[value].push(row);
+    return out;
+  }, {});
+}
+
+function sum(rows, key) {
+  return rows.reduce((total, row) => total + number(row[key]), 0);
+}
+
+function countBy(rows, key) {
+  return Object.entries(groupBy(rows, key)).map(([name, records]) => ({ name, value: records.length, records })).sort((a, b) => b.value - a.value);
+}
+
+function searchableText(record) {
+  return lower([record.subcomponent, record.type, record.name, record.description].join(' '));
+}
+
+function matches(record, text) {
+  return searchableText(record).includes(text);
+}
+
+function isCompleted(record) {
+  return record.status === 'Completed';
+}
+
+function getActuals() {
+  const rows = state.filtered;
+  const male = sum(rows, 'male');
+  const female = sum(rows, 'female');
+
+  return {
+    beneficiaries: sum(rows, 'beneficiaries'),
+    host: sum(rows, 'host'),
+    refugee: sum(rows, 'refugee'),
+    slm: rows.filter(row => matches(row, '2.1') || matches(row, 'natural') || matches(row, 'landscape') || matches(row, 'watershed')).length,
+    cif: rows.filter(row => (matches(row, 'cif') || matches(row, 'community investment')) && isCompleted(row)).length,
+    sif: rows.filter(row => (matches(row, 'sif') || matches(row, 'strategic investment')) && isCompleted(row)).length,
+    energy: rows.filter(row => matches(row, '2.2') || matches(row, 'energy') || matches(row, 'solar')).length,
+    cbo: rows.filter(row => matches(row, 'cbo') || matches(row, 'cooperative') || matches(row, 'russaco')).length,
+    livelihoodBen: sum(rows.filter(row => matches(row, '3.1') || matches(row, '3.2') || matches(row, 'livelihood')), 'beneficiaries'),
+    irrigationBen: sum(rows.filter(row => matches(row, '3.3') || matches(row, 'irrigation')), 'beneficiaries'),
+    irrigation: rows.filter(row => matches(row, '3.3') || matches(row, 'irrigation')).length,
+    femaleShare: male + female ? Math.round((female / (male + female)) * 100) : 0,
+    none: 0
+  };
+}
+
+function getTargetRows() {
+  const targets = state.targets?.targets || {};
+  const actuals = getActuals();
+  return targetMap.map(([code, subcomponent, indicator, unit, actualKey, source]) => {
+    const target = number(targets[code]);
+    const actual = number(actuals[actualKey]);
+    const percent = target ? Math.round((actual / target) * 100) : 0;
+    return { code, subcomponent, indicator, unit, target, actual, percent, gap: Math.max(target - actual, 0), source };
+  });
+}
+
+function getWoredaAllocationRows() {
+  const units = state.targets?.woreda_city_intervention_areas || [];
+  const targets = state.targets?.targets || {};
+  const totalAreas = units.reduce((total, unit) => total + number(unit.total), 0);
+  const recordsByWoreda = groupBy(state.filtered, 'woreda');
+
+  return units.map(unit => {
+    const share = totalAreas ? number(unit.total) / totalAreas : 0;
+    const records = recordsByWoreda[unit.woreda_city] || recordsByWoreda[unit.woreda_city.replace(' Woreda', '')] || [];
+    const beneficiaryTarget = Math.round(number(targets.beneficiaries_total) * share);
+    const collected = sum(records, 'beneficiaries');
+    return {
+      unit,
+      share,
+      beneficiaryTarget,
+      collected,
+      achievement: beneficiaryTarget ? Math.round((collected / beneficiaryTarget) * 100) : 0,
+      cif: Math.round(number(targets.cif_completed) * share),
+      sif: Math.round(number(targets.sif_completed) * share),
+      slm: Math.round((number(targets.slm_physical_ha) + number(targets.slm_biological_ha)) * share),
+      energy: Math.round(number(targets.energy_demo_households) * share),
+      livelihood: Math.round((number(targets.traditional_livelihood_beneficiaries) + number(targets.nontraditional_livelihood_beneficiaries)) * share),
+      irrigation: Math.round(number(targets.irrigation_area_ha) * share)
+    };
+  });
+}
+
+function makeKpis(items) {
+  return items.map(item => `<div class="card kpi-card"><div class="kpi-label">${escapeHtml(item[0])}</div><div class="kpi-value">${escapeHtml(item[1])}</div><div class="kpi-sub">${escapeHtml(item[2])}</div></div>`).join('');
+}
+
+function makeProgress(percent) {
+  return `<strong>${percent}%</strong><div class="progress"><span style="width:${Math.min(percent, 100)}%"></span></div>`;
+}
+
+function makeBadge(status) {
+  const className = status === 'Completed' ? 'completed' : status === 'Ongoing' ? 'ongoing' : lower(status).includes('delay') ? 'problem' : '';
+  return `<span class="badge ${className}">${escapeHtml(status || 'Unknown')}</span>`;
+}
+
+function drawChart(id, type, labels, data, label = 'Records', max = null) {
+  const canvas = $(id);
+  if (!window.Chart || !canvas) return;
+  if (state.charts[id]) state.charts[id].destroy();
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: type === 'doughnut' } },
+    scales: type === 'bar' ? { y: { beginAtZero: true } } : {}
+  };
+  if (max && options.scales.y) options.scales.y.max = max;
+  state.charts[id] = new Chart(canvas, { type, data: { labels, datasets: [{ label, data }] }, options });
+}
+
+function renderTargets() {
+  const targetRows = getTargetRows();
+  const targets = state.targets?.targets || {};
+  const collected = sum(state.filtered, 'beneficiaries');
+  const beneficiaryTarget = number(targets.beneficiaries_total);
+  const gap = Math.max(beneficiaryTarget - collected, 0);
+
+  $('target-source').textContent = state.targets?.source || 'Target baseline';
+  $('target-note').textContent = state.targets?.note || '';
+  $('target-kpis').innerHTML = makeKpis([
+    ['Beneficiary target', formatNumber(beneficiaryTarget), 'Official Somali Region target'],
+    ['Collected beneficiaries', formatNumber(collected), 'Filtered Kobo records'],
+    ['Achievement', beneficiaryTarget ? Math.round((collected / beneficiaryTarget) * 100) + '%' : '0%', formatNumber(gap) + ' remaining'],
+    ['Collected records', formatNumber(state.filtered.length), 'Kobo submissions'],
+    ['Target year', 'Year 5', 'PDO and intermediate targets']
+  ]);
+
+  $('target-table-body').innerHTML = targetRows.map(row => `<tr><td>${escapeHtml(row.subcomponent)}</td><td>${escapeHtml(row.indicator)}</td><td>${escapeHtml(row.unit)}</td><td>${formatNumber(row.target)}</td><td>${formatNumber(row.actual)}</td><td>${makeProgress(row.percent)}</td><td>${formatNumber(row.gap)}</td><td>${escapeHtml(row.source)}</td></tr>`).join('');
+
+  const allocationRows = getWoredaAllocationRows();
+  $('woreda-target-body').innerHTML = allocationRows.map(row => `<tr><td>${escapeHtml(row.unit.woreda_city)}</td><td>${escapeHtml(row.unit.zone)}</td><td>${Math.round(row.share * 100)}%</td><td>${formatNumber(row.beneficiaryTarget)}</td><td>${formatNumber(row.collected)}</td><td>${makeProgress(row.achievement)}</td><td>${formatNumber(row.cif)}</td><td>${formatNumber(row.sif)}</td><td>${formatNumber(row.slm)}</td><td>${formatNumber(row.energy)}</td><td>${formatNumber(row.livelihood)}</td><td>${formatNumber(row.irrigation)}</td><td>${escapeHtml(row.unit.note || 'Planning allocation')}</td></tr>`).join('');
+
+  drawChart('chart-target-achievement', 'bar', targetRows.slice(0, 12).map(row => row.indicator.slice(0, 32)), targetRows.slice(0, 12).map(row => row.percent), 'Achievement %', 100);
+  drawChart('chart-woreda-targets', 'bar', allocationRows.map(row => row.unit.woreda_city), allocationRows.map(row => row.achievement), 'Beneficiary achievement %', 100);
+}
+
+function renderMap() {
+  if (!window.L || !$('map')) return;
+  const mappedRows = state.filtered.filter(row => row.hasGps);
+  $('map-count').textContent = formatNumber(mappedRows.length) + ' mapped records';
+  $('map-missing').textContent = formatNumber(state.filtered.length - mappedRows.length) + ' missing GPS';
+
+  if (!state.map) {
+    state.map = L.map('map').setView([6.7, 44.2], 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(state.map);
+    state.markers = L.layerGroup().addTo(state.map);
+  }
+
+  state.markers.clearLayers();
+  mappedRows.forEach(row => {
+    L.marker([row.lat, row.lon]).bindPopup(`<b>${escapeHtml(row.woreda)}</b><br>${escapeHtml(row.kebele)}<br>${escapeHtml(row.name || row.type)}`).addTo(state.markers);
+  });
+
+  if (mappedRows.length) {
+    state.map.fitBounds(L.latLngBounds(mappedRows.map(row => [row.lat, row.lon])), { padding: [24, 24] });
+  }
+}
+
+function render() {
+  renderTargets();
+
+  const rows = state.filtered;
+  const completedCount = rows.filter(isCompleted).length;
+
+  $('hdr-live').textContent = formatNumber(state.records.length);
+  $('hdr-filtered').textContent = formatNumber(rows.length);
+
+  $('kpi-grid').innerHTML = makeKpis([
+    ['Records', formatNumber(rows.length), 'Filtered records'],
+    ['Woreda/City', formatNumber(new Set(rows.map(row => row.woreda)).size), 'Reported units'],
+    ['Kebeles', formatNumber(new Set(rows.map(row => row.kebele).filter(Boolean)).size), 'Reported kebeles'],
+    ['Beneficiaries', formatNumber(sum(rows, 'beneficiaries')), 'Collected'],
+    ['Completed', rows.length ? Math.round((completedCount / rows.length) * 100) + '%' : '0%', formatNumber(completedCount) + ' completed']
+  ]);
+
+  const statusCounts = countBy(rows, 'status');
+  drawChart('chart-status', 'doughnut', statusCounts.map(row => row.name), statusCounts.map(row => row.value));
+
+  const subcomponentCounts = countBy(rows, 'subcomponent').slice(0, 15);
+  drawChart('chart-subcomponent', 'bar', subcomponentCounts.map(row => row.name), subcomponentCounts.map(row => row.value));
+
+  $('latest-body').innerHTML = [...rows]
+    .sort((a, b) => clean(b.submitted).localeCompare(clean(a.submitted)))
+    .slice(0, 12)
+    .map(row => `<tr><td>${escapeHtml((row.submitted || '').slice(0, 10))}</td><td>${escapeHtml(row.woreda)}</td><td>${escapeHtml(row.kebele)}</td><td>${escapeHtml(row.name || row.type)}</td><td>${makeBadge(row.status)}</td><td>${formatNumber(row.beneficiaries)}</td></tr>`)
+    .join('') || '<tr><td colspan="6">No records</td></tr>';
+
+  const woredaRecords = countBy(rows, 'woreda').slice(0, 20);
+  drawChart('chart-woreda-records', 'bar', woredaRecords.map(row => row.name), woredaRecords.map(row => row.value));
+
+  const woredaBeneficiaries = Object.entries(groupBy(rows, 'woreda'))
+    .map(([name, records]) => ({ name, value: sum(records, 'beneficiaries'), records }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 20);
+  drawChart('chart-woreda-beneficiaries', 'bar', woredaBeneficiaries.map(row => row.name), woredaBeneficiaries.map(row => row.value), 'Beneficiaries');
+
+  $('woreda-rank-body').innerHTML = Object.entries(groupBy(rows, 'woreda')).map(([woreda, records]) => `<tr><td>${escapeHtml(woreda)}</td><td>${formatNumber(records.length)}</td><td>${formatNumber(new Set(records.map(row => row.kebele).filter(Boolean)).size)}</td><td>${formatNumber(sum(records, 'beneficiaries'))}</td><td>${records.length ? Math.round((records.filter(isCompleted).length / records.length) * 100) : 0}%</td><td>${records.length ? Math.round((records.filter(row => row.hasGps).length / records.length) * 100) : 0}%</td><td>${records.length ? Math.round((records.filter(row => row.hasPhotos).length / records.length) * 100) : 0}%</td></tr>`).join('');
+
+  $('table-body').innerHTML = rows.map(row => `<tr><td>${escapeHtml(row.woreda)}</td><td>${escapeHtml(row.kebele)}</td><td>${escapeHtml(row.name || row.description)}</td><td>${escapeHtml(row.subcomponent)}</td><td>${escapeHtml(row.type)}</td><td>${makeBadge(row.status)}</td><td>${formatNumber(row.beneficiaries)}</td><td>${escapeHtml((row.submitted || '').slice(0, 10))}</td></tr>`).join('');
+
+  $('quality-kpis').innerHTML = [
+    ['Missing kebele', rows.filter(row => !row.kebele).length],
+    ['Missing status', rows.filter(row => !row.status).length],
+    ['Missing beneficiaries', rows.filter(row => !row.beneficiaries).length],
+    ['Missing GPS', rows.filter(row => !row.hasGps).length],
+    ['Missing photos', rows.filter(row => !row.hasPhotos).length]
+  ].map(item => `<div class="quality-item"><span>${item[0]}</span><strong>${formatNumber(item[1])}</strong></div>`).join('');
+
+  $('quality-body').innerHTML = Object.entries(groupBy(rows, 'woreda')).map(([woreda, records]) => `<tr><td>${escapeHtml(woreda)}</td><td>${formatNumber(records.length)}</td><td>${records.filter(row => !row.kebele).length}</td><td>${records.filter(row => !row.status).length}</td><td>${records.filter(row => !row.beneficiaries).length}</td><td>${records.filter(row => !row.hasGps).length}</td><td>${records.filter(row => !row.hasPhotos).length}</td></tr>`).join('');
+
+  $('normalized-json').textContent = JSON.stringify(rows.slice(0, 200), null, 2);
+  renderMap();
+}
+
+function applyFilters() {
+  const get = id => clean($(id)?.value);
+  const query = lower(get('filter-search'));
+
+  state.filtered = state.records.filter(record => {
+    if (get('filter-woreda') && record.woreda !== get('filter-woreda')) return false;
+    if (get('filter-kebele') && record.kebele !== get('filter-kebele')) return false;
+    if (get('filter-subcomponent') && record.subcomponent !== get('filter-subcomponent')) return false;
+    if (get('filter-type') && record.type !== get('filter-type')) return false;
+    if (get('filter-status') && record.status !== get('filter-status')) return false;
+    if (get('filter-date-from') && record.submitted && record.submitted.slice(0, 10) < get('filter-date-from')) return false;
+    if (get('filter-date-to') && record.submitted && record.submitted.slice(0, 10) > get('filter-date-to')) return false;
+    if (query && !lower([record.woreda, record.kebele, record.subcomponent, record.type, record.name, record.description, record.status].join(' ')).includes(query)) return false;
+    return true;
+  });
+
+  render();
+}
+
+function fillSelect(id, values, label) {
+  const element = $(id);
+  const oldValue = element.value;
+  const uniqueValues = [...new Set(values.filter(Boolean))].sort();
+  element.innerHTML = `<option value="">${label}</option>` + uniqueValues.map(value => `<option>${escapeHtml(value)}</option>`).join('');
+  if (uniqueValues.includes(oldValue)) element.value = oldValue;
+}
+
+function csv(rows) {
+  if (!rows.length) return '';
+  const cols = Object.keys(rows[0]);
+  return [cols.join(','), ...rows.map(row => cols.map(col => `"${clean(row[col]).replace(/"/g, '""')}"`).join(','))].join('\n');
+}
+
+function downloadFile(name, text) {
+  const blob = new Blob([text], { type: 'text/plain' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function proxyBase() {
+  return clean(localStorage.proxyBase) || location.origin;
+}
+
+function showAlert(message, isError = false) {
+  const alert = $('alert');
+  alert.textContent = message;
+  alert.className = isError ? 'alert error' : 'alert';
+  alert.classList.remove('hidden');
+}
+
+function hideAlert() {
+  $('alert').classList.add('hidden');
+}
+
+async function loadDashboard() {
+  showAlert('Loading Somali Region targets and Kobo records...');
+  try {
+    state.targets = await (await fetch('data/plan-targets-summary.json', { cache: 'no-store' })).json();
+
+    const params = new URLSearchParams();
+    if (clean(localStorage.assetUid)) params.set('asset', localStorage.assetUid);
+    if (clean(localStorage.koboServer)) params.set('server', localStorage.koboServer);
+
+    const response = await fetch(`${proxyBase()}/api/kobo-proxy${params.toString() ? '?' + params.toString() : ''}`);
+    if (!response.ok) throw new Error(await response.text());
+
+    const data = await response.json();
+    state.raw = Array.isArray(data.results) ? data.results : [];
+    state.records = state.raw.filter(isSomaliRecord).map(normalizeRecord);
+
+    $('hdr-synced').textContent = new Date(data.fetchedAt || Date.now()).toLocaleString();
+    hideAlert();
+
+    fillSelect('filter-woreda', state.records.map(row => row.woreda), 'All Woreda/City');
+    fillSelect('filter-kebele', state.records.map(row => row.kebele), 'All Kebeles');
+    fillSelect('filter-subcomponent', state.records.map(row => row.subcomponent), 'All Sub-components');
+    fillSelect('filter-type', state.records.map(row => row.type), 'All Types');
+    fillSelect('filter-status', state.records.map(row => row.status), 'All Statuses');
+
+    applyFilters();
+  } catch (error) {
+    showAlert('Failed to load dashboard: ' + error.message, true);
+    state.filtered = [];
+    render();
+  }
+}
+
+function setupEvents() {
+  document.querySelectorAll('.tab-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(item => item.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(item => item.classList.remove('active'));
+      button.classList.add('active');
+      $(`tab-${button.dataset.tab}`).classList.add('active');
+      setTimeout(() => state.map && state.map.invalidateSize(), 100);
+    });
+  });
+
+  ['filter-woreda', 'filter-kebele', 'filter-subcomponent', 'filter-type', 'filter-status', 'filter-date-from', 'filter-date-to', 'filter-search'].forEach(id => {
+    $(id).addEventListener('input', applyFilters);
+  });
+
+  $('reset-filters').addEventListener('click', () => {
+    document.querySelectorAll('.filters-grid select:not(.locked-select), .filters-grid input').forEach(input => { input.value = ''; });
+    applyFilters();
+  });
+
+  $('refresh-btn').addEventListener('click', loadDashboard);
+  $('export-targets').addEventListener('click', () => downloadFile('somali-region-target-vs-collected.csv', csv(getTargetRows())));
+  $('export-csv').addEventListener('click', () => downloadFile('somali-region-filtered-records.csv', csv(state.filtered.map(row => ({ woreda: row.woreda, kebele: row.kebele, subcomponent: row.subcomponent, type: row.type, name: row.name, status: row.status, beneficiaries: row.beneficiaries, submitted: row.submitted }))));
+  $('export-json').addEventListener('click', () => downloadFile('somali-region-filtered-records.json', JSON.stringify(state.filtered, null, 2)));
+
+  $('settings-btn').addEventListener('click', () => {
+    $('setting-asset').value = localStorage.assetUid || '';
+    $('setting-server').value = localStorage.koboServer || '';
+    $('setting-proxy').value = localStorage.proxyBase || '';
+    $('settings-modal').classList.remove('hidden');
+  });
+
+  $('settings-close').addEventListener('click', () => $('settings-modal').classList.add('hidden'));
+  $('settings-save').addEventListener('click', () => {
+    localStorage.assetUid = $('setting-asset').value;
+    localStorage.koboServer = $('setting-server').value;
+    localStorage.proxyBase = $('setting-proxy').value;
+    $('settings-modal').classList.add('hidden');
+    loadDashboard();
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setupEvents();
+  loadDashboard();
+});
