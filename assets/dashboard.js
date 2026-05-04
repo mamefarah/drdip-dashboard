@@ -22,9 +22,9 @@ const FIELD_ALIASES = {
   refugee: ['group_13/tc_002', 'refugee', 'refugee_beneficiaries', 'Refugee beneficiaries'],
   male: ['group_4/group_hostcomm/host_male', 'group_12/gain_male_hc', 'group_13/gain_male_ref', 'male'],
   female: ['group_4/group_hostcomm/host_female', 'group_12/gain_female_hc', 'group_13/gain_female_ref', 'female'],
-  gps: ['gps_point', 'gps', '_geolocation'],
-  latitude: ['latitude', '_geolocation_latitude'],
-  longitude: ['longitude', '_geolocation_longitude'],
+  gps: ['gps_point', 'gps', 'GPS', '_geolocation', 'geolocation', 'Geolocation', 'location', 'Location', 'coordinates', 'Coordinates', 'point', 'Point', 'geopoint', 'GeoPoint'],
+  latitude: ['latitude', 'Latitude', 'lat', 'Lat', '_geolocation_latitude', '_geolocation/0', '_geolocation_0'],
+  longitude: ['longitude', 'Longitude', 'lon', 'Lon', 'lng', 'Lng', '_geolocation_longitude', '_geolocation/1', '_geolocation_1'],
   submitted: ['_submission_time', 'submission_time', 'submitted'],
   validation: ['_validation_status', 'validation_status']
 };
@@ -92,14 +92,51 @@ function textOf(row) {
 }
 function hasText(row, word) { return textOf(row).includes(word); }
 function isCompleted(row) { return row.status === 'Completed'; }
-function getGps(record) {
-  const gps = getValue(record, 'gps');
-  if (Array.isArray(gps) && gps.length >= 2) return { lat: num(gps[0]), lon: num(gps[1]) };
-  if (typeof gps === 'string') {
-    const parts = gps.split(/[ ,]+/).map(num).filter(Boolean);
-    if (parts.length >= 2) return { lat: parts[0], lon: parts[1] };
+function validSomaliPoint(lat, lon) {
+  return Number.isFinite(lat) && Number.isFinite(lon) && lat >= 2 && lat <= 13 && lon >= 37 && lon <= 49;
+}
+function normalizePoint(a, b) {
+  const first = num(a);
+  const second = num(b);
+  if (validSomaliPoint(first, second)) return { lat: first, lon: second };
+  if (validSomaliPoint(second, first)) return { lat: second, lon: first };
+  return { lat: 0, lon: 0 };
+}
+function parseGpsValue(value) {
+  if (!value) return { lat: 0, lon: 0 };
+  if (Array.isArray(value) && value.length >= 2) return normalizePoint(value[0], value[1]);
+  if (typeof value === 'object') {
+    if (Array.isArray(value.coordinates) && value.coordinates.length >= 2) return normalizePoint(value.coordinates[1], value.coordinates[0]);
+    const lat = value.lat ?? value.latitude ?? value.Latitude ?? value._latitude;
+    const lon = value.lon ?? value.lng ?? value.longitude ?? value.Longitude ?? value._longitude;
+    if (lat != null && lon != null) return normalizePoint(lat, lon);
   }
-  return { lat: num(getValue(record, 'latitude')), lon: num(getValue(record, 'longitude')) };
+  if (typeof value === 'string') {
+    const parts = value.match(/-?\d+(?:\.\d+)?/g) || [];
+    if (parts.length >= 2) return normalizePoint(parts[0], parts[1]);
+  }
+  return { lat: 0, lon: 0 };
+}
+function getGps(record) {
+  let point = parseGpsValue(getValue(record, 'gps'));
+  if (point.lat && point.lon) return point;
+  point = normalizePoint(getValue(record, 'latitude'), getValue(record, 'longitude'));
+  if (point.lat && point.lon) return point;
+
+  const keys = Object.keys(record);
+  const latKey = keys.find(key => /(^|[/_.-])(lat|latitude)$/i.test(key));
+  const lonKey = keys.find(key => /(^|[/_.-])(lon|lng|longitude)$/i.test(key));
+  if (latKey && lonKey) {
+    point = normalizePoint(record[latKey], record[lonKey]);
+    if (point.lat && point.lon) return point;
+  }
+
+  const likelyGpsKeys = keys.filter(key => /(gps|geo|geopoint|location|coordinate|point)/i.test(key));
+  for (const key of likelyGpsKeys) {
+    point = parseGpsValue(record[key]);
+    if (point.lat && point.lon) return point;
+  }
+  return { lat: 0, lon: 0 };
 }
 function isSomali(record) {
   const region = lower(getValue(record, 'region'));
@@ -307,7 +344,12 @@ function renderMap() {
       appState.markers = L.layerGroup().addTo(appState.map);
     }
     appState.markers.clearLayers();
-    mapped.forEach(row => L.marker([row.lat, row.lon]).bindPopup(`<b>${html(row.woreda)}</b><br>${html(row.kebele)}<br>${html(row.name || row.type)}`).addTo(appState.markers));
+    mapped.forEach(row => L.marker([row.lat, row.lon]).bindPopup(`<b>${html(row.woreda)}</b><br>${html(row.kebele)}<br>${html(row.name || row.type)}<br>Lat: ${row.lat}, Lon: ${row.lon}`).addTo(appState.markers));
+    setTimeout(() => appState.map && appState.map.invalidateSize(), 100);
+    if (mapped.length) {
+      const bounds = L.latLngBounds(mapped.map(row => [row.lat, row.lon]));
+      appState.map.fitBounds(bounds, { padding: [24, 24] });
+    }
   } catch (error) {
     console.warn('Map skipped:', error);
   }
@@ -384,13 +426,15 @@ async function loadData() {
 }
 function setupEvents() {
   document.querySelectorAll('.tab-btn').forEach(button => {
+    if (button.dataset.tab === 'targets') button.textContent = '🎯 Target vs Collected';
     button.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(item => item.classList.remove('active'));
       document.querySelectorAll('.tab-panel').forEach(item => item.classList.remove('active'));
       button.classList.add('active');
       const panel = el(`tab-${button.dataset.tab}`);
       if (panel) panel.classList.add('active');
-      setTimeout(() => appState.map && appState.map.invalidateSize(), 100);
+      if (button.dataset.tab === 'map') renderMap();
+      setTimeout(() => appState.map && appState.map.invalidateSize(), 150);
     });
   });
   ['filter-woreda', 'filter-kebele', 'filter-subcomponent', 'filter-type', 'filter-status', 'filter-date-from', 'filter-date-to', 'filter-search'].forEach(id => {
@@ -400,7 +444,7 @@ function setupEvents() {
   if (el('reset-filters')) el('reset-filters').addEventListener('click', resetFilters);
   if (el('refresh-btn')) el('refresh-btn').addEventListener('click', loadData);
   if (el('export-targets')) el('export-targets').addEventListener('click', () => download('somali-region-target-vs-collected.csv', makeCsv(targetRows())));
-  if (el('export-csv')) el('export-csv').addEventListener('click', () => download('somali-region-filtered-records.csv', makeCsv(appState.filtered.map(row => ({ woreda: row.woreda, kebele: row.kebele, subcomponent: row.subcomponent, type: row.type, name: row.name, status: row.status, beneficiaries: row.beneficiaries, submitted: row.submitted })))));
+  if (el('export-csv')) el('export-csv').addEventListener('click', () => download('somali-region-filtered-records.csv', makeCsv(appState.filtered.map(row => ({ woreda: row.woreda, kebele: row.kebele, subcomponent: row.subcomponent, type: row.type, name: row.name, status: row.status, beneficiaries: row.beneficiaries, submitted: row.submitted, latitude: row.lat, longitude: row.lon })))));
   if (el('export-json')) el('export-json').addEventListener('click', () => download('somali-region-filtered-records.json', JSON.stringify(appState.filtered, null, 2)));
   if (el('settings-btn')) el('settings-btn').addEventListener('click', () => {
     el('setting-asset').value = localStorage.assetUid || '';
@@ -419,6 +463,7 @@ function setupEvents() {
 }
 window.appState = appState;
 window.renderAll = renderAll;
+window.renderMap = renderMap;
 window.resetFilters = resetFilters;
 document.addEventListener('DOMContentLoaded', () => {
   setupEvents();
