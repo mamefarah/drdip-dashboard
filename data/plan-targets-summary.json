@@ -1,0 +1,34 @@
+{
+  "region": "Somali Region",
+  "source": "DRDIP-II Project Somali Region PDO and Intermediate targets.xlsx",
+  "note": "Regional targets are official. Woreda/City split must use approved AWP&B when available. Temporary allocation uses intervention area share.",
+  "targets": {
+    "beneficiaries_total": 803250,
+    "beneficiaries_host": 586539,
+    "beneficiaries_refugee": 216711,
+    "slm_physical_ha": 5600,
+    "slm_biological_ha": 2400,
+    "cif_completed": 126,
+    "sif_completed": 12,
+    "energy_demo_households": 2734,
+    "energy_self_adopt_households": 5460,
+    "cbo_operational": 402,
+    "traditional_livelihood_beneficiaries": 29576,
+    "nontraditional_livelihood_beneficiaries": 12043,
+    "irrigation_beneficiaries": 5296,
+    "farmers_adopting_technologies": 7500,
+    "irrigation_area_ha": 1324,
+    "female_members_percent": 40,
+    "women_leadership_percent": 30
+  },
+  "woreda_city_intervention_areas": [
+    {"woreda_city":"Awbare Woreda","zone":"Fafan","existing":9,"new":10,"total":19},
+    {"woreda_city":"Kebribeyah Woreda","zone":"Fafan","existing":4,"new":16,"total":20},
+    {"woreda_city":"Kebribeyah City Administration","zone":"Fafan","existing":1,"new":8,"total":9},
+    {"woreda_city":"Dollo Bay Woreda","zone":"Liban","existing":0,"new":7,"total":7},
+    {"woreda_city":"Dollo Ado Woreda","zone":"Liban","existing":7,"new":5,"total":12},
+    {"woreda_city":"Bokolmayo Woreda","zone":"Liban","existing":6,"new":1,"total":7},
+    {"woreda_city":"Danot Woreda","zone":"Dollo","existing":0,"new":0,"total":0},
+    {"woreda_city":"Bokh Woreda","zone":"Dollo","existing":0,"new":0,"total":0}
+  ]
+}
