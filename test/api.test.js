@@ -79,6 +79,59 @@ test('kobo proxy fetches all pages using only the server-side token', async () =
   }
 });
 
+test('kobo proxy skips malformed non-object records instead of failing the whole import', async () => {
+  const oldEnv = { ...process.env };
+  process.env.KOBO_API_TOKEN = 'server-token';
+  process.env.KOBO_SERVER = 'https://kf.kobotoolbox.org';
+  process.env.KOBO_ASSET_UID = 'asset-123';
+  process.env.ALLOWED_ORIGINS = 'http://localhost:3000';
+
+  const oldFetch = global.fetch;
+  global.fetch = async () => Response.json({
+    count: 4,
+    results: [{ _id: 1 }, null, 'not-a-record', ['nested', 'array'], { _id: 2 }],
+    next: null,
+  });
+
+  try {
+    const req = { method: 'GET', headers: { origin: 'http://localhost:3000' }, query: {} };
+    const res = mockResponse();
+
+    await proxyHandler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body.results, [{ _id: 1 }, { _id: 2 }]);
+    assert.equal(res.body.skippedRecords, 3);
+  } finally {
+    global.fetch = oldFetch;
+    process.env = oldEnv;
+  }
+});
+
+test('kobo proxy returns a clear error when KoboToolbox response is not a JSON object', async () => {
+  const oldEnv = { ...process.env };
+  process.env.KOBO_API_TOKEN = 'server-token';
+  process.env.KOBO_SERVER = 'https://kf.kobotoolbox.org';
+  process.env.KOBO_ASSET_UID = 'asset-123';
+  process.env.ALLOWED_ORIGINS = 'http://localhost:3000';
+
+  const oldFetch = global.fetch;
+  global.fetch = async () => Response.json([{ _id: 1 }]);
+
+  try {
+    const req = { method: 'GET', headers: { origin: 'http://localhost:3000' }, query: {} };
+    const res = mockResponse();
+
+    await proxyHandler(req, res);
+
+    assert.equal(res.statusCode, 502);
+    assert.match(res.body.error, /unexpected response shape/i);
+  } finally {
+    global.fetch = oldFetch;
+    process.env = oldEnv;
+  }
+});
+
 test('kobo proxy rejects unknown Kobo server domains', async () => {
   const oldEnv = { ...process.env };
   process.env.KOBO_API_TOKEN = 'server-token';
