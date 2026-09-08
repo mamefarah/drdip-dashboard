@@ -35,6 +35,10 @@ function jsonError(req, res, status, message) {
   return res.status(status).json({ error: message });
 }
 
+function isPlainObject(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function parseServer(server) {
   try {
     const url = new URL(server);
@@ -117,6 +121,7 @@ module.exports = async function handler(req, res) {
   let pageUrl = new URL(`/api/v2/assets/${encodeURIComponent(asset)}/data/`, serverUrl.origin).toString();
   let pageCount = 0;
   let reportedCount = 0;
+  let skippedRecords = 0;
 
   try {
     while (pageUrl) {
@@ -131,8 +136,21 @@ module.exports = async function handler(req, res) {
       }
 
       const data = await fetchJsonWithTimeout(pageUrl, token);
+      if (!isPlainObject(data)) {
+        return jsonError(req, res, 502, 'KoboToolbox returned an unexpected response shape');
+      }
       if (Number.isFinite(data.count)) reportedCount = data.count;
-      if (Array.isArray(data.results)) results.push(...data.results);
+      if (Array.isArray(data.results)) {
+        for (const record of data.results) {
+          if (isPlainObject(record)) {
+            results.push(record);
+          } else {
+            skippedRecords += 1;
+          }
+        }
+      } else if (data.results != null) {
+        return jsonError(req, res, 502, 'KoboToolbox returned an unexpected response shape');
+      }
       pageUrl = data.next || null;
     }
   } catch (err) {
@@ -150,5 +168,6 @@ module.exports = async function handler(req, res) {
     next: null,
     fetchedAt: new Date().toISOString(),
     source: 'kobotoolbox-live',
+    skippedRecords,
   });
 };
