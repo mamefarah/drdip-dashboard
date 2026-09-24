@@ -13,9 +13,9 @@ test('frontend does not expose or persist Kobo API tokens', () => {
   assert.doesNotMatch(html, /API token/i);
 });
 
-test('frontend is national instead of Somali-only', () => {
-  assert.match(html, /DRDIP-II National Field Monitoring Dashboard/);
-  assert.doesNotMatch(html, /function\s+isSomali/i);
-  assert.doesNotMatch(html, /SOMALI_NAMES/);
-  assert.doesNotMatch(html, /ALL_DATA\s*=\s*RAW_DATA\.filter/i);
+test('frontend is intentionally scoped to Somali Region', () => {
+  assert.match(html, /DRDIP-II Somali Region Monitoring Dashboard/);
+  assert.match(html, /Somali Region geographic hierarchy and filters/);
+  assert.match(html, /Region locked/);
+  assert.doesNotMatch(html, /DRDIP-II National Field Monitoring Dashboard/);
 });

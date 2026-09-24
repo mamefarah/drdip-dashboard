@@ -1,109 +1,183 @@
 # DRDIP-II Somali Region Monitoring Dashboard
 
-Live KoboToolbox monitoring dashboard for DRDIP-II field records in Somali Region only.
+[![CI](https://github.com/mamefarah/drdip-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/mamefarah/drdip-dashboard/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-The dashboard is a static single-page application deployed with Vercel serverless functions. Production data comes from KoboToolbox through the Vercel proxy. Excel exports are optional schema references only and are not required in production.
+An open-source KoboToolbox monitoring dashboard for DRDIP-II field records in Ethiopia's Somali Region. It combines live field submissions, target-versus-collected monitoring, geographic views, beneficiary summaries, data-quality checks, photo evidence, and exportable management tables.
 
-## Scope
+The current implementation is configured for DRDIP-II Somali Region. The architecture is intentionally documented so other development, humanitarian, research, and public-sector teams can fork and adapt the same secure Kobo-to-dashboard pattern.
 
-- Somali Region is the default and locked region.
-- National and multi-region views are removed.
-- Geographic hierarchy is Region, Woreda/City, Kebele, and Sub-kebele.
-- Region-level charts are replaced with Woreda/City analytics.
-- The comparison tab is Woreda/City Comparison.
-- The Plan Targets baseline stores Somali Region PDO and Intermediate targets.
+## Why this project exists
 
-## Plan Targets Added
+KoboToolbox is widely used for field data collection, but programme teams often still need a lightweight way to turn submissions into management views without exposing API credentials in browser code or requiring a proprietary BI stack.
 
-The target baseline comes from `DRDIP-II Project Somali Region PDO and Intermediate targets.xlsx`.
+This repository demonstrates a practical pattern:
 
-Key Year 5 Somali Region targets:
+- a static browser dashboard for low-complexity deployment;
+- serverless proxy functions that keep the Kobo API token server-side;
+- Kobo host allowlists, HTTPS-only requests, timeouts, and pagination limits;
+- target-versus-collected monitoring;
+- geographic, beneficiary, status, GPS, photo, and data-quality views;
+- automated tests for the proxy and frontend security assumptions.
 
-| Indicator | Target |
-|---|---:|
-| Beneficiaries with access to social and economic services and infrastructure | 803,250 |
-| Host beneficiaries | 586,539 |
-| Refugee beneficiaries | 216,711 |
-| Sustainable landscape management, physical | 5,600 ha |
-| Sustainable landscape management, biological | 2,400 ha |
-| CIF subprojects completed and fully operational | 126 |
-| SIF subprojects completed and fully operational | 12 |
-| Alternative energy demonstration households | 2,734 |
-| Households adopting alternative energy with own resources | 5,460 |
-| CBOs operational one year after support | 402 |
-| Traditional livelihood beneficiaries | 29,576 |
-| Non-traditional livelihood beneficiaries | 12,043 |
-| Irrigation beneficiaries | 5,296 |
-| Farmers adopting improved agricultural technologies | 7,500 |
-| New or improved irrigation or drainage area | 1,324 ha |
-| Female members in community institutions | 40% |
-| Women in leadership roles in community institutions | 30% |
+## Current deployment scope
 
-## Woreda/City Target Allocation
+The reference configuration is Somali Region only.
 
-The uploaded target workbook gives Somali Region-level targets. Where approved Woreda/City target splits are not available, the dashboard uses intervention area share as a planning allocation.
+- Geographic hierarchy: Region -> Woreda/City -> Kebele -> Sub-kebele.
+- Region is locked to Somali Region.
+- Management views compare field records and beneficiary reporting across Woreda/City.
+- A planning target baseline is stored in data/plan-targets-summary.json.
+- Where an approved subregional target split is unavailable, any planning allocation shown by the dashboard should be treated as an analytical planning aid, not an approved target.
 
-| Woreda/City | Zone | Existing areas | New areas | Total areas |
-|---|---:|---:|---:|---:|
-| Awbare Woreda | Fafan | 9 | 10 | 19 |
-| Kebribeyah Woreda | Fafan | 4 | 16 | 20 |
-| Kebribeyah City Administration | Fafan | 1 | 8 | 9 |
-| Dollo Bay Woreda | Liban | 0 | 7 | 7 |
-| Dollo Ado Woreda | Liban | 7 | 5 | 12 |
-| Bokolmayo Woreda | Liban | 6 | 1 | 7 |
+The repository contains no production Kobo token and should not contain raw beneficiary or personally identifiable field data.
 
-Danot Woreda and Bokh Woreda are included as additional financing locations, but their approved target split is not embedded until the official AWP&B target sheet is provided.
+## Features
+
+- Live KoboToolbox record retrieval through a server-side proxy.
+- Cascading geographic and implementation filters.
+- Executive KPIs and Woreda/City analytics.
+- Target-versus-collected indicator tracking.
+- Host/refugee beneficiary summaries where the underlying form supplies those fields.
+- GPS coverage and map views.
+- Photo-evidence review.
+- Data-quality scoring and missing-field checks.
+- Duplicate-record review support.
+- Generated issue/action views.
+- CSV exports for selected tables.
+- Automated Node.js tests.
 
 ## Architecture
 
-```text
+~~~text
 Browser
-  -> index.html
-  -> /api/kobo-proxy
-       -> KoboToolbox data API
-  -> /api/kobo-media?url=...
-       -> KoboToolbox media URLs
-```
+  |
+  +-- index.html + assets/
+  |
+  +-- /api/kobo-proxy
+  |     +-- validates Kobo server
+  |     +-- adds server-side API token
+  |     +-- follows bounded pagination
+  |     +-- returns JSON with no-store caching
+  |
+  +-- /api/kobo-media
+        +-- validates Kobo media URL
+        +-- adds server-side API token
+        +-- restricts returned media types
+~~~
 
-## Data Files
+The dashboard is designed for Vercel serverless functions, but the same API handlers can be adapted to other Node.js serverless platforms.
 
-- `data/plan-targets-summary.json` stores the Somali Region target baseline and Woreda/City intervention area base.
+## Security model
 
-## Environment Variables
+The frontend must never receive KOBO_API_TOKEN.
 
-Set these in Vercel project settings:
+Current proxy controls include:
 
-```text
+- Kobo credentials read only from server environment variables.
+- HTTPS-only Kobo server validation.
+- Explicit allowlists for Kobo hosts.
+- Origin-aware CORS using ALLOWED_ORIGINS.
+- GET/OPTIONS-only proxy endpoints.
+- 30-second upstream request timeout.
+- Maximum pagination bound.
+- no-store caching for proxied data and media.
+- Media URL validation and image/video content-type checks.
+
+See SECURITY.md and docs/DATA_PRIVACY.md before deploying with sensitive field data.
+
+## Quick start
+
+Requirements:
+
+- Node.js 20
+- A KoboToolbox account and asset UID
+- Vercel CLI for local serverless development, or an equivalent Node.js serverless environment
+
+Run the tests:
+
+~~~bash
+npm test
+~~~
+
+For local serverless development:
+
+~~~bash
+vercel dev --listen 3000
+~~~
+
+Then open http://localhost:3000.
+
+## Environment variables
+
+Configure these in the deployment environment, not in source control:
+
+~~~text
 KOBO_API_TOKEN=your_kobo_account_token
 KOBO_SERVER=https://kf.kobotoolbox.org
-KOBO_ASSET_UID=aFPhq8BHNDSd2SBKUAbP4y
-ALLOWED_ORIGINS=http://localhost:3000,https://your-vercel-domain.vercel.app
-```
+KOBO_ASSET_UID=your_asset_uid
+ALLOWED_ORIGINS=http://localhost:3000,https://your-dashboard.example
+~~~
 
-Do not commit real Kobo credentials, Excel exports, or raw Kobo data.
+Never commit real Kobo credentials, exported raw submissions, or beneficiary PII.
 
-## Dashboard Features
+## Reusing the dashboard for another Kobo project
 
-- Somali Region-only default view.
-- Locked Somali Region filter.
-- Cascading Woreda/City, Kebele, and Sub-kebele filters.
-- Executive KPIs for records, Woreda/City count, kebele count, beneficiaries, and completion.
-- Woreda/City charts for records, beneficiaries, completion, GPS coverage, and photo coverage.
-- Woreda/City component matrix and ranking table.
-- Somali Region map, subprojects table, photos, data quality, analytics, and exports.
-- Plan target baseline for PDO and Intermediate results.
+This repository is a forkable reference implementation, not a zero-configuration generic product. To adapt it:
 
-## Local Development
+1. Fork the repository.
+2. Configure the four environment variables above.
+3. Replace the target baseline in data/plan-targets-summary.json.
+4. Adapt Kobo field mappings in the dashboard JavaScript under assets/.
+5. Replace DRDIP-II/Somali Region labels and programme-specific logic in index.html and assets/.
+6. Keep the server-side token, Kobo-host validation, and test coverage intact.
+7. Run npm test before deployment.
 
-Use Vercel dev so the serverless functions run locally:
+A more detailed adaptation checklist is in docs/REUSE_GUIDE.md.
 
-```bash
-npm test
-vercel dev --listen 3000
-```
+## Testing and quality
 
-Open:
+GitHub Actions runs npm test on pull requests and pushes to main.
 
-```text
-http://localhost:3000
-```
+The test suite covers:
+
+- server-side Kobo token use;
+- Kobo host rejection;
+- media-host rejection;
+- frontend checks preventing token exposure;
+- the intended Somali Region dashboard scope.
+
+Contributions that change the proxy, data interpretation, security assumptions, or geographic logic should include corresponding test updates.
+
+## Contributing and maintenance
+
+Issues and pull requests are welcome. See:
+
+- CONTRIBUTING.md for the development and review workflow;
+- MAINTAINERS.md for maintenance responsibilities;
+- SECURITY.md for vulnerability reporting;
+- ROADMAP.md for planned work;
+- CHANGELOG.md for release-facing changes.
+
+Primary maintainer: [@mamefarah](https://github.com/mamefarah).
+
+## Releases
+
+The project follows semantic versioning for public releases. Release candidates should have:
+
+1. a green CI run;
+2. an updated CHANGELOG.md;
+3. reviewed security/privacy implications;
+4. deployment notes where configuration changes are required.
+
+The current package version is 1.0.0. A tagged GitHub release should be created only from a reviewed main-branch commit.
+
+## Public benefit and roadmap
+
+The project aims to make field-monitoring infrastructure easier to inspect, reuse, and improve for teams that rely on KoboToolbox and need lightweight dashboards, particularly in low-bandwidth development and humanitarian settings.
+
+See ROADMAP.md for the six-month maintenance plan.
+
+## License
+
+MIT. See LICENSE.

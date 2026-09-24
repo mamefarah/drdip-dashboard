@@ -1,11 +1,28 @@
 {
   "name": "drdip-dashboard",
   "version": "1.0.0",
-  "description": "DRDIP-II Field Monitoring Dashboard — Somali Regional State Bureau of Agriculture",
+  "description": "Open-source KoboToolbox monitoring dashboard for DRDIP-II Somali Region field data and development-programme M&E.",
+  "private": false,
   "engines": {
     "node": "20.x"
   },
-  "license": "UNLICENSED",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mamefarah/drdip-dashboard.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mamefarah/drdip-dashboard/issues"
+  },
+  "keywords": [
+    "kobotoolbox",
+    "monitoring",
+    "evaluation",
+    "dashboard",
+    "humanitarian",
+    "development",
+    "vercel"
+  ],
   "scripts": {
     "test": "node --test"
   }
