@@ -1,0 +1,28 @@
+name: Feature request
+description: Propose an improvement to monitoring, reuse, accessibility, security, or maintenance
+title: "[Feature] "
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: Problem or need
+      description: Describe the user or programme need before describing the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: What should the project do differently?
+    validations:
+      required: true
+  - type: textarea
+    id: reuse
+    attributes:
+      label: Reuse/public-benefit value
+      description: Would this help deployments beyond the current DRDIP-II Somali Region configuration?
+  - type: textarea
+    id: risks
+    attributes:
+      label: Data, privacy, or compatibility considerations
+      description: Note any Kobo schema, sensitive-data, deployment, or backward-compatibility impact.
